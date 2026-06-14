@@ -10,7 +10,7 @@ public sealed class AuthOptions
     public string SigningKeyEnvironmentVariable { get; set; } = "HELPID_AUTH_JWT_SIGNING_KEY";
     public int LockoutFailedAttempts { get; set; } = 5;
     public int LockoutMinutes { get; set; } = 15;
-    public int PasswordMinLength { get; set; } = 8;
+    public int PasswordMinLength { get; set; } = 12;
     public int PasswordMaxLength { get; set; } = 128;
 
     public TimeSpan AccessTokenLifetime => TimeSpan.FromMinutes(AccessTokenMinutes);

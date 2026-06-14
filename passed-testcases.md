@@ -1,5 +1,40 @@
 # Passed Testcases
 
+15/06/2026 02:55:07
+- Mục đích/nội dung testcase: Kiểm tra whitespace/conflict marker sau khi cập nhật tài liệu vận hành backend/auth, API contract, env, migration/test và ghi chú Firebase legacy.
+- Cách test: Chạy `git diff --check` ở root repo. Đây là testcase suite-level, command không in chi tiết từng file khi pass và không chứa dữ liệu nhạy cảm.
+- Expected result: Lệnh kết thúc exit code 0, không có whitespace error hoặc conflict marker trong diff.
+- Actual result: `git diff --check` kết thúc exit code 0 và không có output lỗi.
+- Kết luận: PASS.
+
+15/06/2026 02:40:24
+- Mục đích/nội dung testcase: Kiểm thử hardening backend auth/API cho password policy, SQL injection, refresh token revoke/rotation, JWT payload minimization, public/API logging và raw SQL unsafe.
+- Cách test: Chạy `dotnet build backend/HelpId.Api/HelpId.Api.csproj`; `dotnet test backend/HelpId.Api.Tests/HelpId.Api.Tests.csproj`; `dotnet ef migrations list --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj`; scan source bằng `rg` để tìm raw SQL API unsafe trong `backend/HelpId.Api` (loại `bin/obj`) và scan log/token pattern trong Android/web API. Test runner chỉ trả kết quả suite-level cho build/migration; scan không in dữ liệu nhạy cảm.
+- Expected result: Backend build 0 error; auth/security test pass; migration list vẫn thấy `InitialAuthSchema`; không có `FromSqlRaw`/`ExecuteSqlRaw`/raw SQL unsafe trong source backend; không còn log pattern rõ ràng chứa uid/raw response/token trong Android/web API.
+- Actual result: `dotnet build` PASS (`0 Warning(s), 0 Error(s)`); `dotnet test` PASS (`Failed: 0, Passed: 34, Total: 34`); migration list PASS (`20260614120904_InitialAuthSchema`); raw SQL scan PASS (không có kết quả); log/token scan PASS (không có kết quả).
+- Kết luận: PASS.
+
+15/06/2026 02:40:24
+- Mục đích/nội dung testcase: Kiểm chứng web/Android sau khi sửa safe logging, thêm dependency trực tiếp `node-fetch`, chạy audit fix non-breaking và cập nhật lockfile.
+- Cách test: Chạy `npm install --package-lock-only`, `npm audit --omit=dev --json`, `npm audit fix --omit=dev`, restore dev deps bằng `npm install`, sau đó chạy `cd helper-id && npm run build`, `cd helper-id && npx tsc --noEmit`, `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`, `git diff --check`.
+- Expected result: Web build/typecheck pass; Android assemble/unit/lint pass; diff check không có whitespace/conflict marker; production audit không còn critical/high sau fix non-breaking, nếu còn finding cần breaking `--force` thì không tự áp dụng và ghi rõ.
+- Actual result: `npm audit fix --omit=dev` áp dụng fix non-breaking, production audit sau đó còn 8 moderate trong nhánh `firebase-admin`/Google transitive và fix duy nhất yêu cầu `npm audit fix --force` về `firebase-admin@12.1.0` breaking nên chưa áp dụng; `npm run build` PASS (`✓ built in 2.76s`); `npx tsc --noEmit` PASS; Gradle PASS (`BUILD SUCCESSFUL in 28s`, 54 actionable tasks); `git diff --check` PASS (không output lỗi).
+- Kết luận: PASS.
+
+15/06/2026 02:23:34
+- Mục đích/nội dung testcase: Kiểm thử end-to-end luồng register/login/refresh/logout/profile/QR/public profile sau khi nối frontend/backend mới, xác nhận frontend contract hiện khớp backend/API và không cần sửa frontend.
+- Cách test: Tạo SQLite DB tạm bằng `dotnet ef database update`, chạy backend local trên `http://127.0.0.1:5099`, dùng script Node gọi HTTP thật qua các endpoint: `POST /api/v1/auth/register`, login sai, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/refresh`, `PUT/GET /api/v1/profile`, `POST /api/v1/emergency-links/mint`, `GET /api/v1/public/profile`, gọi trực tiếp Vercel-style handler `helper-id/api/profile.js`, `POST /api/v1/auth/logout`, rồi thử refresh lại sau logout. Script chỉ in số lượng check pass, không in access token, refresh token, public profile token, dữ liệu y tế hoặc số điện thoại.
+- Expected result: Register trả 201 và token pair hợp lệ; login sai trả 401 và không trả token; login đúng trả 200; refresh trả 200 và rotate refresh token; profile PUT/GET trả 200; QR mint trả public key `HID-*`, URL và header `no-store/noindex`; public profile trực tiếp và qua proxy trả whitelist field, không có `userId/email/language/lastUpdated`; logout trả 204; refresh sau logout trả 401; backend local dừng sau test.
+- Actual result: E2E PASS 46 checks cho register/login/refresh/logout/profile/QR/public-profile/proxy; không phát hiện lỗi nối contract, không sửa backend/API/frontend; backend local đã dừng, health sau khi dừng trả `000`.
+- Kết luận: PASS.
+
+15/06/2026 02:23:34
+- Mục đích/nội dung testcase: Chạy toàn bộ build/test liên quan sau E2E auth/profile/QR/public profile.
+- Cách test: Chạy `dotnet build backend/HelpId.Api/HelpId.Api.csproj`; `dotnet test backend/HelpId.Api.Tests/HelpId.Api.Tests.csproj`; `dotnet ef migrations list --no-build --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj` với DB tạm; `cd helper-id && npm run build`; `cd helper-id && npx tsc --noEmit`; `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`.
+- Expected result: Backend build pass; backend 30/30 test pass; migration list thấy `InitialAuthSchema`; Vite build pass; TypeScript 0 error; Android assemble/unit/lint pass với JDK 17.
+- Actual result: `dotnet build` PASS (`0 Warning(s), 0 Error(s)`); `dotnet test` PASS (`Failed: 0, Passed: 30, Total: 30`); migration list PASS (`20260614120904_InitialAuthSchema`); `npm run build` PASS (`✓ built in 4.38s`); `npx tsc --noEmit` PASS (không output lỗi); Gradle PASS (`BUILD SUCCESSFUL in 55s`, 54 actionable tasks).
+- Kết luận: PASS.
+
 15/06/2026 01:53:10
 - Mục đích/nội dung testcase: Kiểm chứng UX/security web public emergency profile sau khi nối backend mới: không cache PII ở fetch/proxy, proxy và UI chỉ giữ field whitelist, lỗi token hết hạn rõ ràng, header no-store/noindex ở proxy/backend public profile, deep link Android compile được.
 - Cách test: Chạy `cd helper-id && npm run build`; `cd helper-id && npx tsc --noEmit`; `dotnet test backend/HelpId.Api.Tests/HelpId.Api.Tests.csproj`; `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`; `git diff --check`. Test runner chỉ trả kết quả ở mức command/suite cho web build/typecheck và Android build.

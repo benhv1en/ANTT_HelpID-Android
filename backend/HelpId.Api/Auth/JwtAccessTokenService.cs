@@ -39,7 +39,6 @@ public sealed class JwtAccessTokenService(IOptions<AuthOptions> options) : IJwtA
             ["iss"] = _options.Issuer,
             ["aud"] = _options.Audience,
             ["sub"] = user.Id,
-            ["email"] = user.Email,
             ["iat"] = now.ToUnixTimeSeconds(),
             ["nbf"] = now.ToUnixTimeSeconds(),
             ["exp"] = expiresAtUtc.ToUnixTimeSeconds(),
@@ -125,11 +124,6 @@ public sealed class JwtAccessTokenService(IOptions<AuthOptions> options) : IJwtA
                 new(HelpIdAuthorizationDefaults.SubjectClaimType, subject.GetString()!),
                 new(ClaimTypes.NameIdentifier, subject.GetString()!)
             };
-
-            if (payload.TryGetProperty("email", out var email) && !string.IsNullOrWhiteSpace(email.GetString()))
-            {
-                claims.Add(new Claim(ClaimTypes.Email, email.GetString()!));
-            }
 
             AddClaimsFromJsonArray(payload, "role", ClaimTypes.Role, claims);
             AddClaimsFromJsonArray(

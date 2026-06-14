@@ -48,6 +48,11 @@ function setJson(res) {
   res.setHeader('Referrer-Policy', 'no-referrer');
 }
 
+function logSafeError(scope, error) {
+  const name = typeof error?.name === 'string' ? error.name : 'Error';
+  console.error(`${scope} failed`, { name });
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
@@ -151,7 +156,7 @@ export default async function handler(req, res) {
       })
     );
   } catch (e) {
-    console.error('mint handler failed', e);
+    logSafeError('mint handler', e);
     setJson(res);
     res.statusCode = 500;
     res.end(JSON.stringify({ error: 'Internal error' }));

@@ -198,12 +198,24 @@ public sealed class AuthService(
             .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
-        if (
-            refreshToken is null ||
-            refreshToken.RevokedAtUtc is not null ||
-            refreshToken.ExpiresAtUtc <= now ||
-            refreshToken.User.DeletedAtUtc is not null
-        )
+        if (refreshToken is null)
+        {
+            return AuthOperationResult<AuthResponse>.InvalidRefreshToken();
+        }
+
+        if (refreshToken.RevokedAtUtc is not null)
+        {
+            await RevokeRefreshTokenFamilyAsync(
+                refreshToken.UserId,
+                refreshToken.TokenFamilyId,
+                now,
+                cancellationToken
+            );
+
+            return AuthOperationResult<AuthResponse>.InvalidRefreshToken();
+        }
+
+        if (refreshToken.ExpiresAtUtc <= now || refreshToken.User.DeletedAtUtc is not null)
         {
             return AuthOperationResult<AuthResponse>.InvalidRefreshToken();
         }
@@ -367,6 +379,34 @@ public sealed class AuthService(
             .ToListAsync(cancellationToken);
 
         return new UserPrincipalData(roles, permissions);
+    }
+
+    private async Task RevokeRefreshTokenFamilyAsync(
+        string userId,
+        string tokenFamilyId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
+    {
+        var activeFamilyTokens = await dbContext.RefreshTokens
+            .Where(token =>
+                token.UserId == userId &&
+                token.TokenFamilyId == tokenFamilyId &&
+                token.RevokedAtUtc == null
+            )
+            .ToListAsync(cancellationToken);
+
+        if (activeFamilyTokens.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var token in activeFamilyTokens)
+        {
+            token.RevokedAtUtc = now;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static AuthUserResponse ToUserResponse(

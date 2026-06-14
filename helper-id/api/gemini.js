@@ -13,6 +13,11 @@ function setJson(res) {
   res.setHeader('Referrer-Policy', 'no-referrer');
 }
 
+function logSafeError(scope, error) {
+  const name = typeof error?.name === 'string' ? error.name : 'Error';
+  console.error(`${scope} failed`, { name });
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
@@ -96,7 +101,7 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ error: 'Upstream timeout' }));
       return;
     }
-    console.error('gemini handler failed', e);
+    logSafeError('gemini handler', e);
     res.statusCode = 500;
     setJson(res);
     res.end(JSON.stringify({ error: 'Internal error' }));

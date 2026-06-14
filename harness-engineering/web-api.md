@@ -10,8 +10,9 @@ Stack:
 - Vite `6.2.0` trong `package.json`, lockfile đang resolve Vite `6.4.1`.
 - React Router `6.30.1` trong `package.json`, lockfile đang resolve `6.30.3`.
 - Lucide React.
-- Firebase Admin.
-- jsonwebtoken.
+- Firebase Admin cho `/api/mint` legacy.
+- `node-fetch` khai báo trực tiếp cho serverless runtime cần fetch package.
+- jsonwebtoken cho legacy JWT.
 
 Scripts:
 
@@ -19,6 +20,7 @@ Scripts:
 npm run dev
 npm run build
 npm run preview
+npx tsc --noEmit
 ```
 
 TypeScript cấu hình `allowJs: true`, `noEmit: true`, `moduleResolution: bundler`.
@@ -59,40 +61,49 @@ Khi sửa trang này:
 - Không render field chưa được whitelist ở API.
 - Kiểm tra trạng thái loading, expired token, missing token.
 
-## API mint
+## API profile proxy mới
 
-`api/mint.js`:
+`api/profile.js` hiện là proxy server-side sang backend ASP.NET Core.
+
+Env bắt buộc:
+
+- `HELPID_BACKEND_URL`: base URL backend, ví dụ `https://api.example.com` hoặc `http://127.0.0.1:5080` khi test local serverless.
+
+Luồng:
+
+1. Chỉ nhận `GET`.
+2. Validate `key` theo `^HID-[A-Z0-9_-]{8,64}$` và token `t` có độ dài hợp lý.
+3. Gọi `${HELPID_BACKEND_URL}/api/v1/public/profile?key=...&t=...`.
+4. Nếu backend lỗi mạng/timeout, trả `503` generic.
+5. Nếu backend trả lỗi, map message an toàn, không log token.
+6. Nếu backend thành công, sanitize lại whitelist trước khi trả web.
+
+Whitelist response:
+
+- `name`
+- `bloodGroup`
+- `allergies`
+- `emergencyContacts[].name`
+- `emergencyContacts[].phone`
+- `address`
+- `medicalNotes`
+
+Không trả `userId`, email, language, role, token, audit, metadata nội bộ.
+
+## API mint legacy
+
+`api/mint.js` vẫn là luồng Firebase legacy:
 
 - Chỉ nhận POST.
 - Yêu cầu `Authorization: Bearer <Firebase ID token>`.
 - Dùng Firebase Admin để verify ID token.
 - Public key format: `HID-[A-Z0-9_-]{8,64}`.
 - Nếu client gửi publicKey cũ, kiểm tra key thuộc cùng uid.
-- Map `publicKeys/{publicKey}` sang `uid`.
-- JWT payload gồm `{ k: publicKey }`, HS256, expires `3h`.
+- Map `publicKeys/{publicKey}` sang `uid` trong Firestore.
+- JWT payload gồm `{ k: publicKey }`, HS256, expires `3h` bằng `PROFILE_JWT_SECRET` legacy.
 - URL trả về dựa trên forwarded host/proto đã sanitize.
 
-Không thay đổi expiry hoặc field token mà không cập nhật Android và tài liệu.
-
-## API profile
-
-`api/profile.js`:
-
-- Chỉ nhận GET.
-- Yêu cầu `key` và `t`.
-- Verify JWT bằng `PROFILE_JWT_SECRET`.
-- Payload phải khớp key.
-- Lấy uid qua `publicKeys/{key}`.
-- Lấy profile ở `users/{uid}`.
-- Trả whitelist:
-  - `name`
-  - `bloodGroup`
-  - `allergies`
-  - `emergencyContacts`
-  - `address`
-  - `medicalNotes`
-
-Nếu thêm field public, phải trả lời được câu hỏi: field đó có an toàn để người quét QR xem không?
+Luồng Android auth mới nên dùng backend `POST /api/v1/emergency-links/mint`. Không xóa `/api/mint` cho tới khi có kế hoạch gỡ Firebase/migration riêng.
 
 ## API Gemini
 
@@ -103,8 +114,7 @@ Nếu thêm field public, phải trả lời được câu hỏi: field đó có
 - Giới hạn prompt 4000 ký tự.
 - Timeout upstream 15 giây.
 - Nếu `GEMINI_PROXY_TOKEN` tồn tại, yêu cầu bearer token khớp.
-
-Lưu ý: source import `node-fetch`; lockfile có `node-fetch` gián tiếp, nhưng `package.json` chưa khai báo trực tiếp. Nếu endpoint này là phần được bảo trì chính thức, nên thêm dependency trực tiếp.
+- Log lỗi bằng scope và tên lỗi, không log prompt hoặc token.
 
 ## Header và noindex
 
@@ -117,10 +127,22 @@ API cũng set:
 
 - `Content-Type: application/json`
 - `Cache-Control: no-store`
+- `Pragma: no-cache`
+- `Expires: 0`
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: no-referrer`
 
 Giữ các header này khi sửa API.
+
+## Env Vercel/API
+
+- `HELPID_BACKEND_URL`: bắt buộc cho `/api/profile` proxy backend mới.
+- `FIREBASE_SERVICE_ACCOUNT_KEY`: bắt buộc cho `/api/mint` legacy.
+- `PROFILE_JWT_SECRET`: bắt buộc cho `/api/mint` legacy.
+- `GEMINI_API_KEY`: bắt buộc cho `/api/gemini`.
+- `GEMINI_PROXY_TOKEN`: tùy chọn, bật bearer token cho `/api/gemini`.
+
+Không đưa các env này vào `VITE_*` hoặc client bundle.
 
 ## Thiết kế web
 

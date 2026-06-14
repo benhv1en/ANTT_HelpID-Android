@@ -53,6 +53,11 @@ function sanitizeProfile(profile) {
   };
 }
 
+function logSafeError(scope, error) {
+  const name = typeof error?.name === 'string' ? error.name : 'Error';
+  console.error(`${scope} failed`, { name });
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== 'GET') {
@@ -117,7 +122,7 @@ export default async function handler(req, res) {
     res.statusCode = 200;
     res.end(JSON.stringify({ key, profile: sanitizeProfile(json?.profile) }));
   } catch (e) {
-    console.error('profile handler failed', e?.message);
+    logSafeError('profile handler', e);
     setSecurityHeaders(res);
     res.statusCode = 500;
     res.end(JSON.stringify({ error: 'Internal error' }));

@@ -536,7 +536,7 @@ fun EmergencyScreen(
     
     // Load profile offline-first: show cached immediately, then sync remote
     LaunchedEffect(userId) {
-        android.util.Log.d("EmergencyScreen", "LaunchedEffect started with userId=$userId")
+        android.util.Log.d("EmergencyScreen", "Profile load started")
         var hasCached = false
         try {
             if (userId.isNotEmpty()) {
@@ -555,11 +555,11 @@ fun EmergencyScreen(
                         // Also add timeout to profile loading
                         withTimeout(5000L) {  // 5 second timeout
                             val profile = repository.getUserProfile(userId)
-                            android.util.Log.d("EmergencyScreen", "Profile loaded: ${profile.name}")
+                            android.util.Log.d("EmergencyScreen", "Profile loaded")
                             userProfile.value = profile
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("EmergencyScreen", "Error loading profile: ${e.message}", e)
+                        android.util.Log.e("EmergencyScreen", "Error loading profile")
                         if (!hasCached) {
                             userProfile.value = UserProfile.default(userId, selectedLanguageCode)
                         }
@@ -570,7 +570,7 @@ fun EmergencyScreen(
                 userProfile.value = UserProfile.default("", selectedLanguageCode)
             }
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyScreen", "Exception in LaunchedEffect: ${e.message}", e)
+            android.util.Log.e("EmergencyScreen", "Profile load effect failed")
         } finally {
             if (!hasCached) {
                 isLoading.value = false
@@ -589,7 +589,7 @@ fun EmergencyScreen(
                     userProfile.value = profile
                 }
             } catch (e: Exception) {
-                android.util.Log.e("EmergencyScreen", "Background sync failed: ${e.message}", e)
+                android.util.Log.e("EmergencyScreen", "Background sync failed")
             }
         }
     }

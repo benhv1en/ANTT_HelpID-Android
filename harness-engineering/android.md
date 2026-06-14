@@ -19,12 +19,32 @@ Dependency đáng chú ý:
 - libphonenumber `8.13.27`.
 - iTextG `5.5.10`.
 
+## Auth backend mới
+
+Android đã có luồng Login/Register dùng backend `backend/HelpId.Api` thay cho Firebase anonymous ở bề mặt auth user-facing mới.
+
+Thành phần cần chú ý:
+
+- `MainActivity.kt`: auth state, Login/Register, route sau đăng nhập.
+- `data/AuthTokenStore.kt`: lưu access token, refresh token, user id, expiry bằng secure prefs wrapper.
+- `data/HelpIdApiAuthRepository.kt`: gọi `/api/v1/auth/register`, `/login`, `/refresh`, `/logout`, `/me`.
+- `data/HelpIdApiEmergencyLinkRepository.kt`: mint QR/NFC/SOS fallback qua `/api/v1/emergency-links/mint`.
+
+Quy tắc:
+
+- Khi access token hết hạn, refresh và retry private request đúng một lần.
+- Logout xóa token local nhưng không tự xóa Room profile nếu chưa có xác nhận riêng.
+- Không log email/password/token hoặc response body có profile.
+- Nếu backend/offline lỗi, EmergencyScreen vẫn ưu tiên Room cache đã có.
+
 ## Navigation và state
 
 Repo chưa dùng Navigation Compose. `MainActivity.AppNavigation` giữ `currentScreen` bằng `remember { mutableStateOf(initialScreen) }`.
 
 Các route hiện có:
 
+- `login`
+- `register`
 - `emergency`
 - `qr`
 - `edit`
@@ -114,7 +134,7 @@ Quy tắc:
 
 `QRScreen`:
 
-- Mint link qua repository.
+- Mint link qua repository; luồng mới dùng backend `POST /api/v1/emergency-links/mint`, legacy có thể còn đi qua Firebase/Vercel trong code cũ.
 - Tạo bitmap QR bằng `generateQRCode`.
 - Nếu mint fail, không render URL hỏng.
 - NFC beam dùng API phản chiếu `setNdefPushMessage`; đây là Android Beam cũ và không đảm bảo hoạt động trên mọi thiết bị.

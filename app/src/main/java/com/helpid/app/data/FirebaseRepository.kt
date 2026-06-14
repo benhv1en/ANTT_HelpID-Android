@@ -144,7 +144,7 @@ class FirebaseRepository(context: Context? = null) {
             
             val userId = auth.currentUser?.uid ?: ""
             currentUserId = userId
-            Log.d("FirebaseRepository", "User ID: $userId")
+            Log.d("FirebaseRepository", "Firebase user initialized")
 
             if (userId.isNotEmpty()) {
                 sharedPrefs?.edit()?.putString(lastUserIdKey, userId)?.apply()
@@ -168,13 +168,13 @@ class FirebaseRepository(context: Context? = null) {
                     Log.d("FirebaseRepository", "Created default profile")
                 }
             } catch (firebaseError: Exception) {
-                Log.w("FirebaseRepository", "Firestore error, falling back to demo mode: ${firebaseError.message}")
+                Log.w("FirebaseRepository", "Firestore unavailable, falling back to demo mode")
                 demoMode = true
             }
             
             userId
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Auth error: ${e.message}", e)
+            Log.e("FirebaseRepository", "Firebase auth initialization failed")
             val cachedUserId = sharedPrefs?.getString(lastUserIdKey, "").orEmpty()
             if (cachedUserId.isNotEmpty()) {
                 Log.d("FirebaseRepository", "Using cached userId for offline mode")
@@ -193,14 +193,14 @@ class FirebaseRepository(context: Context? = null) {
         return try {
             localDb.userProfileDao().getUserProfile(userId)?.let { mapLocalToDomain(it) }
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error reading local db: ${e.message}")
+            Log.e("FirebaseRepository", "Failed to read local profile cache")
             null
         }
     }
 
     private suspend fun fetchRemoteProfile(userId: String): UserProfile? {
         if (demoMode) return null
-        Log.d("FirebaseRepository", "Fetching profile from Firebase for user: $userId")
+        Log.d("FirebaseRepository", "Fetching profile from Firebase")
         val doc = firestore.collection("users").document(userId).get().await()
         if (!doc.exists()) return null
 
@@ -228,7 +228,7 @@ class FirebaseRepository(context: Context? = null) {
                 localDb.userProfileDao().insertUserProfile(mapDomainToLocal(profile))
                 Log.d("FirebaseRepository", "Cached profile to local DB")
             } catch (e: Exception) {
-                Log.e("FirebaseRepository", "Failed to cache to local DB: ${e.message}")
+                Log.e("FirebaseRepository", "Failed to cache profile to local DB")
             }
         }
 
@@ -248,7 +248,7 @@ class FirebaseRepository(context: Context? = null) {
         return try {
             gson.fromJson(raw, UserProfile::class.java)
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Failed to parse pending profile: ${e.message}")
+            Log.e("FirebaseRepository", "Failed to parse pending profile")
             null
         }
     }
@@ -262,7 +262,7 @@ class FirebaseRepository(context: Context? = null) {
             clearPendingProfile()
             true
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Pending profile sync failed: ${e.message}")
+            Log.e("FirebaseRepository", "Pending profile sync failed")
             false
         }
     }
@@ -271,7 +271,7 @@ class FirebaseRepository(context: Context? = null) {
         // 1. Try local cache first
         val cachedProfile = getCachedUserProfile(userId)
         if (cachedProfile != null) {
-            Log.d("FirebaseRepository", "Found local profile for user: $userId")
+            Log.d("FirebaseRepository", "Found local cached profile")
         }
 
         // 2. Try to fetch from Firebase
@@ -279,7 +279,7 @@ class FirebaseRepository(context: Context? = null) {
             val remoteProfile = fetchRemoteProfile(userId)
             remoteProfile ?: cachedProfile ?: defaultProfile(userId)
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error getting profile: ${e.message}", e)
+            Log.e("FirebaseRepository", "Failed to get profile")
             cachedProfile ?: defaultProfile(userId)
         }
     }
@@ -296,7 +296,7 @@ class FirebaseRepository(context: Context? = null) {
                 localDb.userProfileDao().insertUserProfile(mapDomainToLocal(updatedProfile))
                 Log.d("FirebaseRepository", "Updated local profile")
             } catch (e: Exception) {
-                Log.e("FirebaseRepository", "Failed to update local profile: ${e.message}")
+                Log.e("FirebaseRepository", "Failed to update local profile")
             }
         }
 
@@ -306,13 +306,13 @@ class FirebaseRepository(context: Context? = null) {
         }
 
         return try {
-            Log.d("FirebaseRepository", "Updating profile for user: $userId")
+            Log.d("FirebaseRepository", "Updating profile")
             firestore.collection("users").document(userId).set(updatedProfile.toMap()).await()
             clearPendingProfile()
             Log.d("FirebaseRepository", "Profile updated successfully")
             true
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error updating profile: ${e.message}", e)
+            Log.e("FirebaseRepository", "Failed to update profile")
             cachePendingProfile(updatedProfile)
             true
         }
@@ -333,7 +333,7 @@ class FirebaseRepository(context: Context? = null) {
         val idToken = try {
             user.getIdToken(true).await().token.orEmpty()
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Failed to get ID token: ${e.message}")
+            Log.e("FirebaseRepository", "Failed to get ID token")
             ""
         }
 
@@ -369,14 +369,14 @@ class FirebaseRepository(context: Context? = null) {
                 val stream = if (code in 200..299) conn.inputStream else conn.errorStream
                 val raw = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
                 if (code !in 200..299) {
-                    Log.e("FirebaseRepository", "Mint failed: HTTP $code $raw")
+                    Log.e("FirebaseRepository", "Mint failed: HTTP $code")
                     return@withContext ""
                 }
 
                 val parsed = try {
                     gson.fromJson(raw, MintResponse::class.java)
                 } catch (e: Exception) {
-                    Log.e("FirebaseRepository", "Mint parse failed: ${e.message}")
+                    Log.e("FirebaseRepository", "Mint parse failed")
                     null
                 }
 
@@ -387,7 +387,7 @@ class FirebaseRepository(context: Context? = null) {
 
                 parsed?.url.orEmpty()
             } catch (e: Exception) {
-                Log.e("FirebaseRepository", "Mint link error: ${e.message}")
+                Log.e("FirebaseRepository", "Mint link error")
                 ""
             }
         }

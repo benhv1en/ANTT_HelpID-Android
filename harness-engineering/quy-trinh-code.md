@@ -17,10 +17,21 @@
 - Với Room schema, tăng version và viết migration.
 - Với dữ liệu nhạy cảm local, đi qua `FirebaseRepository` và các helper mã hóa hiện có thay vì tự lưu SharedPreferences thường.
 
+## Khi sửa backend ASP.NET Core
+
+- Giữ code-first EF Core trong `backend/HelpId.Api/Data` là nguồn sự thật schema.
+- Khi đổi entity/index/constraint, thêm migration bằng `dotnet ef migrations add <TenMigration>` và kiểm tra `dotnet ef migrations list`.
+- Chỉ chạy `dotnet ef database update` trên database dev/test hoặc môi trường đã được xác nhận; không commit `.db`, `.db-wal`, `.db-shm` có dữ liệu thật.
+- Dùng EF Core LINQ cho CRUD chính. Nếu bắt buộc raw SQL, dùng API parameterized; không ghép chuỗi từ input user.
+- Auth/profile/private link phải lấy user hiện tại từ JWT `sub` qua current user context, không tin `userId` client gửi.
+- Không log password, token, email trong lỗi auth, dữ liệu y tế, số điện thoại hoặc public profile token.
+- Khi đổi API contract, cập nhật `contract-dang-ky-dang-nhap.md`, Android repository liên quan và Vercel proxy nếu shape public profile thay đổi.
+
 ## Khi sửa web/API
 
 - Code React/TSX hiện dùng function component, Tailwind class và lucide icons.
 - Route public emergency `/e/:publicKey` là luồng an toàn, không xử lý như trang marketing.
+- `helper-id/api/profile.js` là proxy server-side sang backend mới qua `HELPID_BACKEND_URL`; giữ whitelist và no-store/noindex.
 - Không expose secret trong client bundle. Secret chỉ ở `helper-id/api/*`.
 - Với API, luôn kiểm tra method, input validation, status code, JSON content type, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
 - Nếu import package trực tiếp trong source, khai báo trong `helper-id/package.json` thay vì dựa vào dependency gián tiếp.

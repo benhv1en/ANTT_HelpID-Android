@@ -1,13 +1,14 @@
 # Contract đăng ký/đăng nhập HelpID
 
 Thời điểm chốt contract: 14/06/2026 18:30:18
+Cập nhật vận hành sau khi backend/auth mới chạy ổn: 15/06/2026
 
-Tài liệu này chốt contract cho tính năng đăng ký/đăng nhập trước khi code runtime. Contract dựa trên hiện trạng repo:
+Tài liệu này chốt contract và runbook vận hành cho tính năng đăng ký/đăng nhập. Contract dựa trên hiện trạng repo:
 
-- Android hiện dùng Firebase Auth anonymous, Firestore `users/{uid}`, Room `helpid_database` để cache offline, và mint public link qua `helper-id/api/mint`.
-- Web hiện có route public `/e/:publicKey` gọi `/api/profile?key=...&t=...`, không dùng layout marketing.
-- API Vercel hiện có `/api/mint`, `/api/profile`, `/api/gemini`; public profile chỉ trả field whitelist và dùng JWT 3 giờ.
-- Tính năng đăng ký/đăng nhập mới sẽ được thêm song song trước, chưa xóa Firebase/Firestore trong lượt thiết kế này.
+- Android hiện có Login/Register, token store và repository gọi backend mới; Room `helpid_database` vẫn là cache offline-first.
+- Backend mới nằm ở `backend/HelpId.Api`, dùng ASP.NET Core, EF Core SQLite, JWT access token, refresh token rotation/revoke và public profile JWT 3 giờ.
+- Web route public `/e/:publicKey` vẫn gọi `/api/profile?key=...&t=...`; serverless `/api/profile` proxy sang backend mới và sanitize whitelist.
+- API Vercel vẫn còn `/api/mint` Firebase legacy và `/api/gemini`; chưa xóa Firebase/Firestore trong lượt này.
 
 ## Mục tiêu và phạm vi
 
@@ -18,17 +19,16 @@ Mục tiêu:
 - Chốt schema database, phân quyền dữ liệu, token flow, lỗi validation và rule chống SQL injection.
 - Giữ an toàn cho tình huống khẩn cấp: nếu API/auth lỗi hoặc offline, Android vẫn đọc được hồ sơ đã cache trong Room.
 
-Ngoài phạm vi của contract này:
+Ngoài phạm vi của contract/runbook này:
 
-- Chưa tạo backend project.
-- Chưa sửa UI/runtime Android.
-- Chưa sửa Vercel API/web runtime.
-- Chưa migrate dữ liệu Firebase cũ.
-- Chưa xóa Firebase Auth/Firestore.
+- Chưa gỡ Firebase Auth/Firestore legacy.
+- Chưa migrate dữ liệu Firebase cũ sang SQLite backend.
+- Chưa thay `/api/mint` legacy bằng backend trong mọi client cũ.
+- Chưa triển khai cơ chế reset password/email verification production.
 
 ## Backend tech được chốt
 
-Backend mới đặt trong repo, dự kiến `backend/HelpId.Api/`.
+Backend mới đặt trong repo tại `backend/HelpId.Api/`.
 
 Stack bắt buộc:
 
@@ -50,9 +50,9 @@ Lý do chốt:
 Config/secret backend không commit vào repo:
 
 - `ConnectionStrings__HelpIdDb`: SQLite database path cho môi trường chạy.
-- `AuthJwt__SigningKey`: secret ký access token.
-- `AuthJwt__Issuer`, `AuthJwt__Audience`.
-- `ProfileJwt__SigningKey`: secret ký public profile JWT 3 giờ.
+- `HELPID_AUTH_JWT_SIGNING_KEY`: secret ký access token, tối thiểu 32 byte, được resolve qua `AuthJwt:SigningKeyEnvironmentVariable`.
+- `HELPID_PROFILE_JWT_SIGNING_KEY`: secret ký public profile JWT 3 giờ, tối thiểu 32 byte, được resolve qua `ProfileJwt:SigningKeyEnvironmentVariable`.
+- `AuthJwt__Issuer`, `AuthJwt__Audience`: override issuer/audience nếu cần.
 - `PublicWeb__BaseUrl`: ví dụ `https://helper-id.vercel.app`.
 
 ## Database schema
@@ -337,7 +337,7 @@ Quy tắc bắt buộc:
 
 ### Access token
 
-- JWT ký bằng `AuthJwt__SigningKey`.
+- JWT ký bằng secret từ `HELPID_AUTH_JWT_SIGNING_KEY`.
 - Lifetime: 15 phút.
 - Claims tối thiểu: `sub`, `jti`, `iat`, `exp`, `iss`, `aud`, `roles`, `security_stamp`.
 - Không đưa dữ liệu y tế, số điện thoại, địa chỉ, refresh token hoặc public key vào access token.
@@ -355,7 +355,7 @@ Quy tắc bắt buộc:
 
 ### Public profile token
 
-- JWT riêng ký bằng `ProfileJwt__SigningKey`, không dùng chung access token secret.
+- JWT riêng ký bằng secret từ `HELPID_PROFILE_JWT_SIGNING_KEY`, không dùng chung access token secret.
 - Lifetime: 3 giờ, giữ tương thích với Vercel API hiện tại.
 - Payload tối thiểu: `{ "k": "<publicKey>", "typ": "public_profile" }`.
 - Public profile endpoint verify token, verify `payload.k == key`, verify link chưa revoke.
@@ -799,7 +799,7 @@ Không được coi các việc sau là đủ chống SQL injection:
 
 ## Android gọi API như thế nào
 
-Thêm sau này, chưa code trong prompt này:
+Hiện Android đã có lớp auth/token/backend API theo contract này:
 
 - `AuthTokenStore`: dùng `SecurePrefs.create(context, "auth_tokens")`, lưu access token, refresh token, user id, expiry UTC.
 - `HelpIdApiClient` hoặc tương đương: có base URL cấu hình được. Dev emulator dùng URL riêng; production dùng HTTPS. Do manifest đang `usesCleartextTraffic="false"`, nếu dev cần HTTP phải có cấu hình debug riêng, không bật cleartext toàn app production.
@@ -820,9 +820,9 @@ Mapping Android hiện tại sang backend mới:
 
 - `initializeUser()` hiện anonymous Firebase -> auth startup mới.
 - `getCachedUserProfile()` giữ Room read offline-first.
-- `getUserProfile()` remote sau này gọi `GET /api/v1/profile`.
+- `getUserProfile()` remote trong luồng mới gọi `GET /api/v1/profile`.
 - `updateUserProfile()` local-first rồi remote `PUT /api/v1/profile`.
-- `mintEmergencyLink()` sau này gọi `POST /api/v1/emergency-links/mint`.
+- `mintEmergencyLink()` trong luồng mới gọi `POST /api/v1/emergency-links/mint`.
 - `public_profile_key` có thể tiếp tục cache trong secure prefs, nhưng backend phải verify ownership khi tái dùng.
 
 ## Web public profile gọi API như thế nào
@@ -848,6 +848,55 @@ Web error mapping:
 - `401`: link hết hạn hoặc token sai, hiển thị thông báo cần tạo lại QR/link.
 - `404`/`410`: link không còn tồn tại hoặc đã bị thu hồi.
 - `500`: lỗi tạm thời, không lộ chi tiết backend.
+
+## Cách chạy backend local
+
+Từ root repo, đặt secret dev không commit vào file:
+
+```bash
+export HELPID_AUTH_JWT_SIGNING_KEY="dev-auth-signing-key-32-byte-minimum-change-me"
+export HELPID_PROFILE_JWT_SIGNING_KEY="dev-profile-signing-key-32-byte-minimum-change-me"
+export ConnectionStrings__HelpIdDb="Data Source=backend/HelpId.Api/App_Data/helpid-dev.db"
+export PublicWeb__BaseUrl="http://localhost:5173"
+dotnet run --project backend/HelpId.Api/HelpId.Api.csproj
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:5080/health
+```
+
+Không đưa secret mẫu thật, token hoặc database có dữ liệu user vào commit/log/testcase.
+
+## Quy trình migration backend
+
+1. Sửa entity/configuration trong `backend/HelpId.Api/Data`.
+2. Tạo migration:
+
+```bash
+dotnet ef migrations add TenMigration --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj
+```
+
+3. Kiểm tra migration diff: table, index, foreign key, default value, cascade delete.
+4. Cập nhật database dev/test:
+
+```bash
+dotnet ef database update --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj
+```
+
+5. Chạy `dotnet test backend/HelpId.Api.Tests/HelpId.Api.Tests.csproj`.
+6. Không dùng destructive migration cho dữ liệu thật. Nếu cần migrate Firebase sang SQLite, lập kế hoạch riêng gồm mapping user/profile/public key, rollback và kiểm thử dữ liệu.
+
+## Trạng thái Firebase legacy
+
+Backend mới đã thay thế auth user-facing và public profile backend cho luồng mới, nhưng Firebase Auth/Firestore chưa được gỡ hoàn toàn:
+
+- Android vẫn còn code `FirebaseRepository` cho legacy profile sync/cache/pending flow.
+- Vercel `/api/mint` vẫn dùng Firebase Admin và Firestore mapping legacy.
+- Dữ liệu user cũ trong Firestore chưa có migration sang SQLite backend.
+
+Vì vậy không xóa Firebase dependency, service account env, Firestore collection hoặc legacy API nếu chưa có plan riêng về gỡ/migration dữ liệu.
 
 ## Use-case mới
 

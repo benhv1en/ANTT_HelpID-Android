@@ -32,8 +32,7 @@ class LocationHelper(private val context: Context) {
                 )
 
                 Tasks.await(currentLocationTask)
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } catch (_: Exception) {
                 null
             }
         }

@@ -80,7 +80,7 @@ NHÓM 4: INTEGRATION, HARDENING, CLEANUP
 ============================================================
 
 --- PROMPT 18: Integration fix theo rule frontend đúng ---
-Mày hãy đọc `AGENTS.md` và `harness-engineering/ke-hoach.md`, rồi chạy kiểm thử end-to-end luồng register/login/refresh/logout/profile/QR/public profile. Nếu frontend đã gọi đúng contract đã chốt mà nối lỗi, sửa backend hoặc API response/status/header để khớp frontend. Chỉ sửa frontend nếu chứng minh frontend lệch contract, có crash UI, hoặc có lỗi bảo mật client-side rõ ràng, và phải nêu lý do. Chạy toàn bộ test/build liên quan và cập nhật `CHANGELOG.md`.
+Mày hãy đọc `AGENTS.md` và `harness-engineering/ke-hoach.md`, rồi chạy kiểm thử end-to-end luồng register/login/refresh/logout/profile/QR/public profile. Nếu frontend đã gọi đúng contract đã chốt mà nối lỗi, sửa backend hoặc API response/status/header để khớp frontend. Chỉ sửa frontend nếu chứng minh frontend lệch contract, có crash UI, hoặc có lỗi bảo mật client-side rõ ràng, và phải nêu lý do. Chạy toàn bộ test/build liên quan và cập nhật `CHANGELOG.md`. (done)
 
 --- PROMPT 19: Hardening bảo mật auth/database/API ---
 Mày hãy đọc `AGENTS.md` và `harness-engineering/ke-hoach.md`, rồi rà soát bảo mật đăng ký/đăng nhập: SQL injection tests, password policy, token revoke, refresh rotation, role/permission/ownership checks, no secret logging, no PII logging, no raw SQL unsafe, public profile whitelist, no token leak trong Android/web. Sửa mọi lỗi backend/API cần thiết; chỉ sửa frontend nếu có lỗi frontend rõ ràng. Chạy test/build/diff check và cập nhật `CHANGELOG.md`.

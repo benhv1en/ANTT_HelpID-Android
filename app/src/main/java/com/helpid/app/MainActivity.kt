@@ -226,7 +226,7 @@ fun AppNavigation(initialScreen: String = "emergency") {
             // 1. Valid access token in store → skip network entirely
             if (tokenStore.hasValidSession()) {
                 val uid = tokenStore.getUserId().orEmpty()
-                Log.d(TAG, "Token valid, userId=$uid")
+                Log.d(TAG, "Token valid; session restored")
                 authState.value = AuthState.Authenticated(uid)
                 return@LaunchedEffect
             }
@@ -298,7 +298,7 @@ fun AppNavigation(initialScreen: String = "emergency") {
                     withTimeout(10000L) {
                         val firebaseUserId = repository.initializeUser()
                         if (firebaseUserId.isNotEmpty()) {
-                            Log.d(TAG, "Firebase fallback: userId=$firebaseUserId")
+                            Log.d(TAG, "Firebase fallback initialized")
                             authState.value = AuthState.LocalCacheOnly(firebaseUserId, isOffline = false)
                         } else {
                             Log.w(TAG, "Firebase returned empty userId")
@@ -309,12 +309,12 @@ fun AppNavigation(initialScreen: String = "emergency") {
                     Log.w(TAG, "Firebase init timed out")
                     authState.value = AuthState.Unauthenticated
                 } catch (e: Exception) {
-                    Log.e(TAG, "Firebase init error: ${e.message}", e)
+                    Log.e(TAG, "Firebase init error")
                     authState.value = AuthState.Unauthenticated
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Auth init exception: ${e.message}", e)
+            Log.e(TAG, "Auth init exception")
             authState.value = AuthState.Unauthenticated
         }
     }

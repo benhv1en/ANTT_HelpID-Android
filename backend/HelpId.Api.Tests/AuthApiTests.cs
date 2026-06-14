@@ -31,7 +31,8 @@ public sealed class AuthApiTests
 
         Assert.Equal(StatusCodes.Status201Created, register.StatusCode);
         Assert.NotNull(register.Body);
-        Assert.NotEqual(register.Body.RefreshToken, await StoredRefreshTokenHashAsync(environment.Context));
+        var tokenHashes = await StoredRefreshTokenHashesAsync(environment.Context);
+        Assert.DoesNotContain(register.Body.RefreshToken, tokenHashes);
 
         var duplicate = await environment.ExecuteAsync<JsonElement>(
             await AuthEndpoints.RegisterAsync(
@@ -45,6 +46,59 @@ public sealed class AuthApiTests
 
         Assert.Equal(StatusCodes.Status409Conflict, duplicate.StatusCode);
         Assert.Equal(1, await environment.Context.Users.CountAsync());
+    }
+
+    [Fact]
+    public async Task Register_rejects_password_shorter_than_policy()
+    {
+        await using var environment = await AuthTestEnvironment.CreateAsync();
+
+        var result = await environment.ExecuteAsync<JsonElement>(
+            await AuthEndpoints.RegisterAsync(
+                new RegisterRequest("short-password@example.test", "12345678901", "User", null),
+                environment.HttpContext,
+                environment.AuthService,
+                environment.TokenHasher,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Equal(StatusCodes.Status422UnprocessableEntity, result.StatusCode);
+        Assert.Equal(0, await environment.Context.Users.CountAsync());
+        Assert.Equal(0, await environment.Context.RefreshTokens.CountAsync());
+    }
+
+    [Fact]
+    public async Task Register_stores_sql_injection_like_display_name_safely()
+    {
+        await using var environment = await AuthTestEnvironment.CreateAsync();
+        var injection = "x'); DROP TABLE Users; --";
+
+        var result = await environment.ExecuteAsync<AuthResponse>(
+            await AuthEndpoints.RegisterAsync(
+                new RegisterRequest("injection@example.test", ValidPassword, injection, null),
+                environment.HttpContext,
+                environment.AuthService,
+                environment.TokenHasher,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Equal(StatusCodes.Status201Created, result.StatusCode);
+        Assert.Equal(1, await environment.Context.Users.CountAsync());
+        Assert.Equal(injection, await environment.Context.Users.Select(user => user.DisplayName).SingleAsync());
+
+        var login = await environment.ExecuteAsync<AuthResponse>(
+            await AuthEndpoints.LoginAsync(
+                new LoginRequest("injection@example.test", ValidPassword, null),
+                environment.HttpContext,
+                environment.AuthService,
+                environment.TokenHasher,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Equal(StatusCodes.Status200OK, login.StatusCode);
     }
 
     [Fact]
@@ -88,7 +142,7 @@ public sealed class AuthApiTests
     }
 
     [Fact]
-    public async Task Refresh_rotates_refresh_token_and_logout_revokes_current_refresh_token()
+    public async Task Refresh_rotates_refresh_token_and_reuse_revokes_token_family()
     {
         await using var environment = await AuthTestEnvironment.CreateAsync();
         var register = await RegisterUserAsync(environment);
@@ -108,6 +162,10 @@ public sealed class AuthApiTests
         Assert.NotNull(refresh.Body);
         Assert.NotEqual(firstRefreshToken, refresh.Body.RefreshToken);
 
+        var storedHashes = await StoredRefreshTokenHashesAsync(environment.Context);
+        Assert.DoesNotContain(firstRefreshToken, storedHashes);
+        Assert.DoesNotContain(refresh.Body.RefreshToken, storedHashes);
+
         var oldTokenReuse = await environment.ExecuteAsync<JsonElement>(
             await AuthEndpoints.RefreshAsync(
                 new RefreshRequest(firstRefreshToken, null),
@@ -119,16 +177,7 @@ public sealed class AuthApiTests
         );
         Assert.Equal(StatusCodes.Status401Unauthorized, oldTokenReuse.StatusCode);
 
-        var logout = await environment.ExecuteAsync<JsonElement>(
-            await AuthEndpoints.LogoutAsync(
-                new LogoutRequest(refresh.Body.RefreshToken),
-                environment.AuthService,
-                CancellationToken.None
-            )
-        );
-        Assert.Equal(StatusCodes.Status204NoContent, logout.StatusCode);
-
-        var afterLogout = await environment.ExecuteAsync<JsonElement>(
+        var replacementAfterReuse = await environment.ExecuteAsync<JsonElement>(
             await AuthEndpoints.RefreshAsync(
                 new RefreshRequest(refresh.Body.RefreshToken, null),
                 environment.HttpContext,
@@ -137,7 +186,36 @@ public sealed class AuthApiTests
                 CancellationToken.None
             )
         );
+        Assert.Equal(StatusCodes.Status401Unauthorized, replacementAfterReuse.StatusCode);
+        Assert.Equal(0, await ActiveRefreshTokenCountAsync(environment.Context));
+    }
+
+    [Fact]
+    public async Task Logout_revokes_current_refresh_token()
+    {
+        await using var environment = await AuthTestEnvironment.CreateAsync();
+        var register = await RegisterUserAsync(environment);
+
+        var logout = await environment.ExecuteAsync<JsonElement>(
+            await AuthEndpoints.LogoutAsync(
+                new LogoutRequest(register.RefreshToken),
+                environment.AuthService,
+                CancellationToken.None
+            )
+        );
+        Assert.Equal(StatusCodes.Status204NoContent, logout.StatusCode);
+
+        var afterLogout = await environment.ExecuteAsync<JsonElement>(
+            await AuthEndpoints.RefreshAsync(
+                new RefreshRequest(register.RefreshToken, null),
+                environment.HttpContext,
+                environment.AuthService,
+                environment.TokenHasher,
+                CancellationToken.None
+            )
+        );
         Assert.Equal(StatusCodes.Status401Unauthorized, afterLogout.StatusCode);
+        Assert.Equal(0, await ActiveRefreshTokenCountAsync(environment.Context));
     }
 
     [Fact]
@@ -193,7 +271,7 @@ public sealed class AuthApiTests
             )
         );
 
-        Assert.Equal(StatusCodes.Status400BadRequest, invalidEmail.StatusCode);
+        Assert.Equal(StatusCodes.Status422UnprocessableEntity, invalidEmail.StatusCode);
 
         var wrongPasswordInjection = await environment.ExecuteAsync<JsonElement>(
             await AuthEndpoints.LoginAsync(
@@ -239,6 +317,23 @@ public sealed class AuthApiTests
         Assert.Contains(HelpIdAuthorizationDefaults.Permissions.AuthSessionSelf, me.Body.Permissions);
     }
 
+    [Fact]
+    public async Task Access_token_payload_does_not_include_email_or_refresh_token()
+    {
+        await using var environment = await AuthTestEnvironment.CreateAsync();
+        var register = await RegisterUserAsync(environment);
+        var tokenParts = register.AccessToken.Split('.');
+
+        Assert.Equal(3, tokenParts.Length);
+        using var payloadDocument = JsonDocument.Parse(Base64Url.Decode(tokenParts[1]));
+        Assert.False(payloadDocument.RootElement.TryGetProperty("email", out _));
+        Assert.DoesNotContain(register.RefreshToken, payloadDocument.RootElement.ToString(), StringComparison.Ordinal);
+
+        var principal = environment.JwtAccessTokenService.ValidateAccessToken(register.AccessToken)
+            ?? throw new InvalidOperationException("Access token was not valid in test setup.");
+        Assert.DoesNotContain(principal.Claims, claim => claim.Type == ClaimTypes.Email || claim.Type == "email");
+    }
+
     private const string ValidPassword = "Correct horse battery staple 42!";
 
     private static async Task<AuthResponse> RegisterUserAsync(AuthTestEnvironment environment)
@@ -257,11 +352,16 @@ public sealed class AuthApiTests
         return result.Body ?? throw new InvalidOperationException("Register response body was empty.");
     }
 
-    private static async Task<string> StoredRefreshTokenHashAsync(HelpIdDbContext context)
+    private static Task<List<string>> StoredRefreshTokenHashesAsync(HelpIdDbContext context)
     {
-        return await context.RefreshTokens
+        return context.RefreshTokens
             .Select(token => token.TokenHash)
-            .SingleAsync();
+            .ToListAsync();
+    }
+
+    private static Task<int> ActiveRefreshTokenCountAsync(HelpIdDbContext context)
+    {
+        return context.RefreshTokens.CountAsync(token => token.RevokedAtUtc == null);
     }
 
     private sealed record ApiResult<T>(int StatusCode, T? Body);

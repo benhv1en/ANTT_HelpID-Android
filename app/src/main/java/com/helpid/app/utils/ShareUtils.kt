@@ -37,8 +37,7 @@ object ShareUtils {
             }
 
             context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_pdf_title)))
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
         }
     }
 

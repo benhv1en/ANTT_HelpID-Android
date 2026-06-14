@@ -4,9 +4,10 @@ Tài liệu này là chỉ dẫn vận hành cho agent coding/testing trong repo
 
 ## Bối cảnh dự án
 
-Repo gồm hai phần:
+Repo gồm ba phần chính:
 
 - `app/`: ứng dụng Android native bằng Kotlin, Jetpack Compose, Room, Firebase Auth/Firestore, WorkManager, ZXing, Google Play Services Location, AndroidX Security Crypto, iTextG.
+- `backend/HelpId.Api/`: backend ASP.NET Core/EF Core SQLite cho đăng ký/đăng nhập, JWT access token, refresh token rotation/revoke, profile private, public emergency link và public profile whitelist.
 - `helper-id/`: website React/Vite và serverless API cho Vercel. Website có marketing routes và route khẩn cấp `/e/:publicKey`; API có `/api/mint`, `/api/profile`, `/api/gemini`.
 
 Dự án xử lý dữ liệu nhạy cảm: tên, nhóm máu, địa chỉ, dị ứng, thông tin y tế, số điện thoại liên hệ khẩn cấp, vị trí trong luồng SOS. Luôn ưu tiên bảo mật, quyền riêng tư, khả năng offline và hành vi an toàn trong tình huống khẩn cấp.
@@ -26,6 +27,8 @@ Dự án xử lý dữ liệu nhạy cảm: tên, nhóm máu, địa chỉ, dị
 - Khi sửa schema Room, tăng version trong `AppDatabase`, thêm migration, không dùng destructive migration cho dữ liệu người dùng.
 - Khi sửa SOS, SMS, location, NFC, QR hoặc public profile, phải nghĩ theo failure mode: thiếu quyền, offline, Firebase lỗi, token hết hạn, thiết bị không có NFC, không có SMS, không có location.
 - Khi sửa web/API, giữ secret ở serverless API. Không đưa secret vào Vite bundle hoặc biến `VITE_*`.
+- Khi sửa backend `backend/HelpId.Api`, dùng EF Core LINQ hoặc query parameterized; không ghép chuỗi raw SQL từ input người dùng. Nếu đổi schema phải thêm migration, chạy migration list/update phù hợp và không commit database thật có dữ liệu người dùng.
+- Backend mới chưa đồng nghĩa đã gỡ Firebase. Chỉ xóa Firebase Auth/Firestore hoặc migration dữ liệu Firebase khi có kế hoạch riêng cho việc gỡ/migrate.
 - Giữ thay đổi hẹp theo yêu cầu. Không refactor rộng, không đổi branding/copy hàng loạt nếu task không yêu cầu.
 
 ## Lệnh thường dùng
@@ -51,30 +54,58 @@ npm run dev
 npx tsc --noEmit
 ```
 
+Backend:
+
+```bash
+dotnet build backend/HelpId.Api/HelpId.Api.csproj
+dotnet test backend/HelpId.Api.Tests/HelpId.Api.Tests.csproj
+dotnet ef migrations list --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj
+dotnet ef database update --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj
+dotnet run --project backend/HelpId.Api/HelpId.Api.csproj
+```
+
+Backend local cần secret ký token qua env, không lưu vào `appsettings*.json`:
+
+- `HELPID_AUTH_JWT_SIGNING_KEY`: secret ký access token, tối thiểu 32 byte.
+- `HELPID_PROFILE_JWT_SIGNING_KEY`: secret ký public profile JWT, tối thiểu 32 byte.
+- `ConnectionStrings__HelpIdDb`: override đường dẫn SQLite nếu không dùng `App_Data/helpid-dev.db`.
+- `PublicWeb__BaseUrl`: URL web public để backend mint link `/e/:publicKey`.
+
 Vercel/API cần env:
 
-- `FIREBASE_SERVICE_ACCOUNT_KEY`: JSON service account đã stringify.
-- `PROFILE_JWT_SECRET`: secret ký JWT cho profile link.
+- `FIREBASE_SERVICE_ACCOUNT_KEY`: JSON service account đã stringify, dùng cho `/api/mint` legacy.
+- `PROFILE_JWT_SECRET`: secret ký JWT cho profile link legacy.
+- `HELPID_BACKEND_URL`: URL backend ASP.NET Core để `/api/profile` proxy public profile mới.
 - `GEMINI_API_KEY`: chỉ dùng server-side cho `/api/gemini`.
 - `GEMINI_PROXY_TOKEN`: tùy chọn, bật bảo vệ bearer token cho `/api/gemini`.
 
 ## Bản đồ code Android
 
-- `MainActivity.kt`: entry Compose, navigation thủ công bằng state, init Firebase trong `AppNavigation`, bottom bar.
+- `MainActivity.kt`: entry Compose, navigation thủ công bằng state, auth state Login/Register, bottom bar.
 - `ui/EmergencyScreen.kt`: màn hình ID khẩn cấp, online/offline sync, SMS SOS, location, WorkManager follow-up, auto emergency dial, NFC beam cũ, profile rendering.
 - `ui/EditProfileScreen.kt`: form chỉnh profile, validation tên/nhóm máu/số điện thoại, chọn contact, lưu Firebase/local.
-- `ui/QRScreen.kt`: mint link bảo mật, tạo QR bằng ZXing, NFC beam.
-- `data/FirebaseRepository.kt`: Auth ẩn danh, Firestore, cache Room, pending sync, mint emergency link, secure prefs migration.
+- `ui/QRScreen.kt`: mint link bảo mật qua backend/legacy repository, tạo QR bằng ZXing, NFC beam.
+- `data/FirebaseRepository.kt`: Auth ẩn danh/Firestore legacy, cache Room, pending sync, secure prefs migration.
 - `data/local/*`: Room entity, DAO, converters, migration.
 - `utils/*`: mã hóa AndroidKeyStore, EncryptedSharedPreferences fallback, PDF, share, notification, language, location, số khẩn cấp.
 - `work/SosFollowUpWorker.kt`: SMS cập nhật vị trí định kỳ sau SOS.
+
+## Bản đồ code backend
+
+- `backend/HelpId.Api/Program.cs`: cấu hình DI, EF Core SQLite, auth/authorization, health và endpoint groups.
+- `backend/HelpId.Api/Data/*`: `HelpIdDbContext`, entity code-first, migration snapshot và seed role/permission.
+- `backend/HelpId.Api/Auth/*`: register/login/refresh/logout/me, password hash PBKDF2, JWT access token, refresh token hash/rotation/revoke.
+- `backend/HelpId.Api/Profiles/*`: API profile private, public profile whitelist, public profile JWT 3 giờ.
+- `backend/HelpId.Api/EmergencyLinks/*`: mint/tái dùng public key, verify ownership và tạo URL public.
+- `backend/HelpId.Api/Security/*`: current user context, role/permission/ownership policies.
+- `backend/HelpId.Api.Tests/*`: test auth/API/profile/security, gồm SQL injection, refresh rotation/reuse và public profile whitelist.
 
 ## Bản đồ code web/API
 
 - `helper-id/App.tsx`: routing. `/e/:publicKey` tách khỏi marketing site.
 - `components/EmergencyProfilePage.tsx`: fetch `/api/profile`, noindex meta, render profile khẩn cấp, deep link Android intent.
 - `api/mint.js`: xác thực Firebase ID token, cấp public key dạng `HID-*`, map `publicKeys/{key}` sang uid, ký JWT 3 giờ.
-- `api/profile.js`: xác thực JWT, lấy mapping, sanitize whitelist fields trước khi trả profile.
+- `api/profile.js`: proxy server-side sang backend mới `GET /api/v1/public/profile`, sanitize lại whitelist fields trước khi trả web.
 - `api/gemini.js`: proxy Gemini server-side, có giới hạn prompt và timeout.
 - `index.html`: Tailwind CDN config, import map, font, favicon.
 
@@ -87,6 +118,7 @@ Vercel/API cần env:
 - Thay đổi string/resource: chạy build để phát hiện thiếu string ở locale.
 - Thay đổi web React/API: chạy `cd helper-id && npm run build`; nếu đổi type phức tạp, chạy thêm `npx tsc --noEmit`.
 - Thay đổi Vercel API: kiểm tra method, status code, header `no-store`, input validation, secret handling.
+- Thay đổi backend ASP.NET Core/API auth/profile/emergency link: chạy `dotnet build`, `dotnet test`, kiểm tra `dotnet ef migrations list`; nếu đổi schema thì chạy `dotnet ef database update` trên database dev/test.
 
 ## Ghi log testcase khi kiểm thử
 
@@ -99,7 +131,8 @@ Vercel/API cần env:
 
 ## Rủi ro đã thấy khi đọc repo
 
-- `helper-id/api/gemini.js` import `node-fetch`; lockfile có `node-fetch` do dependency gián tiếp, nhưng `package.json` chưa khai báo trực tiếp. Nếu sửa hoặc dựa vào endpoint này, cân nhắc thêm dependency trực tiếp.
+- Backend ASP.NET Core đang chạy song song với Firebase legacy. Không coi Firebase Auth/Firestore đã bị thay thế hoàn toàn cho tới khi có kế hoạch gỡ hoặc migrate dữ liệu riêng.
+- `helper-id` còn dùng `firebase-admin` cho `/api/mint` legacy; sau `npm audit fix --omit=dev` vẫn có cảnh báo transitive mức moderate nếu không dùng `--force` hạ/bẻ version. Không tự force khi không có yêu cầu.
 - Nhiều text Android trong `EmergencyScreen.kt` và `EditProfileScreen.kt` còn hard-code tiếng Anh. Khi chạm vào màn hình đó, ưu tiên chuyển sang resource string.
 - Một số bản dịch locale không hoàn toàn đồng nhất về dấu/chuỗi so với `values/strings.xml`. Khi thêm key, cập nhật toàn bộ locale.
 - App launcher PNG đang rất lớn và trùng kích thước giữa density folders. Không tự tối ưu nếu không được giao, nhưng tránh làm phình thêm asset.
@@ -115,5 +148,6 @@ Các hướng dẫn chi tiết nằm trong `harness-engineering/`:
 - `quy-trinh-test.md`: chiến lược kiểm thử.
 - `android.md`: ghi chú Android/Compose/Room/Firebase/SOS.
 - `web-api.md`: ghi chú React/Vite/Vercel API.
+- `contract-dang-ky-dang-nhap.md`: contract và runbook auth/backend mới.
 - `bao-mat-du-lieu.md`: ràng buộc bảo mật và quyền riêng tư.
 - `checklist-truoc-khi-tra-loi.md`: checklist trước khi kết thúc task.

@@ -12,6 +12,7 @@ Repo xử lý:
 - Liên hệ khẩn cấp và số điện thoại.
 - Vị trí hiện tại trong luồng SOS.
 - Firebase uid và ID token.
+- Backend access token và refresh token.
 - Public profile key và JWT ngắn hạn.
 
 Đối xử các dữ liệu này như PII/health data. Không log, không dùng fixture thật, không đưa vào screenshot công khai.
@@ -41,7 +42,21 @@ Khi sửa:
 - Không lưu bản rõ vào file mới.
 - Không đổi alias key nếu không có migration dữ liệu.
 
-## Đồng bộ Firebase
+## Backend auth/API mới
+
+Backend `backend/HelpId.Api` lưu auth/profile/link trong SQLite qua EF Core code-first.
+
+Quy tắc bắt buộc:
+
+- Password hash bằng PBKDF2 implementation trong backend; không lưu plaintext password.
+- Refresh token là opaque random token; database chỉ lưu hash, rotate mỗi lần refresh và revoke cả family khi phát hiện reuse.
+- Access JWT không chứa dữ liệu y tế, số điện thoại, địa chỉ, refresh token hoặc public profile key; claim email không cần thiết cho authorization và không nên thêm lại nếu không có lý do rõ.
+- Profile/private link query phải filter theo user hiện tại từ JWT `sub` và permission policy.
+- Public profile chỉ trả whitelist: `name`, `bloodGroup`, `allergies`, `emergencyContacts`, `address`, `medicalNotes`.
+- Dùng EF Core LINQ/parameterized query; không dùng raw SQL ghép chuỗi từ input.
+- Audit/log chỉ ghi event type, status/reason code, timestamp và hash IP/user-agent nếu cần; không ghi PII/health data/token.
+
+## Đồng bộ Firebase legacy
 
 Firestore collection chính:
 
@@ -85,12 +100,20 @@ WorkManager follow-up phải dừng được bằng unique work name `helpid_sos
 
 ## Web/API secrets
 
-Biến env cần giữ server-side:
+Biến env backend cần giữ server-side:
+
+- `HELPID_AUTH_JWT_SIGNING_KEY`
+- `HELPID_PROFILE_JWT_SIGNING_KEY`
+- `ConnectionStrings__HelpIdDb`
+- `PublicWeb__BaseUrl`
+
+Biến env Vercel cần giữ server-side:
 
 - `FIREBASE_SERVICE_ACCOUNT_KEY`
 - `PROFILE_JWT_SECRET`
 - `GEMINI_API_KEY`
 - `GEMINI_PROXY_TOKEN`
+- `HELPID_BACKEND_URL`
 
 Không dùng prefix `VITE_` cho các biến này.
 

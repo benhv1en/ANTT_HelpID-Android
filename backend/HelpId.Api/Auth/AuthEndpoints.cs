@@ -144,7 +144,10 @@ public static class AuthEndpoints
         var validationErrors = (errors ?? EmptyValidationErrors)
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
 
-        return Results.ValidationProblem(validationErrors);
+        return Results.ValidationProblem(
+            validationErrors,
+            statusCode: StatusCodes.Status422UnprocessableEntity
+        );
     }
 
     private static ClientRequestInfo BuildClientRequestInfo(
