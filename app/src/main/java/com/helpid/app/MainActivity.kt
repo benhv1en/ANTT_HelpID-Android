@@ -1,5 +1,6 @@
 package com.helpid.app
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
@@ -23,16 +24,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,13 +47,19 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.helpid.app.data.AuthResult
+import com.helpid.app.data.AuthTokenStore
 import com.helpid.app.data.FirebaseRepository
+import com.helpid.app.data.StubAuthRepository
 import com.helpid.app.ui.EditProfileScreen
 import com.helpid.app.ui.EmergencyScreen
 import com.helpid.app.ui.LanguageSelectionScreen
+import com.helpid.app.ui.LoginScreen
 import com.helpid.app.ui.QRScreen
+import com.helpid.app.ui.RegisterScreen
 import com.helpid.app.ui.components.ShimmerPlaceholder
 import com.helpid.app.ui.components.SkeletonSpacer
 import com.helpid.app.ui.components.SkeletonTextLine
@@ -63,6 +71,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 private const val TAG = "HelpID"
+
+sealed class AuthState {
+    object Initializing : AuthState()
+    data class Authenticated(val userId: String) : AuthState()
+    data class LocalCacheOnly(val firebaseUserId: String) : AuthState()
+    object Unauthenticated : AuthState()
+}
 
 class MainActivity : ComponentActivity() {
     private fun applyLockScreenFlagsIfNeeded() {
@@ -138,97 +153,205 @@ private fun InitSkeleton(errorText: String?) {
 }
 
 @Composable
+private fun AuthSessionBanner(onLoginClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = stringResource(R.string.auth_banner_session_expired),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.weight(1f)
+        )
+        TextButton(onClick = onLoginClick) {
+            Text(
+                text = stringResource(R.string.auth_banner_login_again),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+@Composable
 fun AppNavigation(initialScreen: String = "emergency") {
     Log.d(TAG, "AppNavigation composable called")
-    
+
     val currentScreen = remember { mutableStateOf(initialScreen) }
-    val userId = remember { mutableStateOf("") }
-    val isInitialized = remember { mutableStateOf(false) }
-    val initError = remember { mutableStateOf<String?>(null) }
+    val authState = remember { mutableStateOf<AuthState>(AuthState.Initializing) }
     val context = LocalContext.current
     val repository = remember { FirebaseRepository(context) }
+    val tokenStore = remember { AuthTokenStore(context) }
+    val authRepository = remember { StubAuthRepository() }
 
-    // Initialize Firebase with timeout
     LaunchedEffect(Unit) {
-        Log.d(TAG, "LaunchedEffect: Starting Firebase initialization")
+        Log.d(TAG, "LaunchedEffect: starting auth init")
         try {
+            // 1. Valid access token in store → skip network
+            if (tokenStore.hasValidSession()) {
+                val uid = tokenStore.getUserId().orEmpty()
+                Log.d(TAG, "Token valid, userId=$uid")
+                authState.value = AuthState.Authenticated(uid)
+                return@LaunchedEffect
+            }
+
+            // 2. Attempt token refresh
+            val storedRefresh = tokenStore.getRefreshToken()
+            if (storedRefresh != null) {
+                Log.d(TAG, "Attempting token refresh")
+                val result = withContext(Dispatchers.IO) {
+                    authRepository.refresh(storedRefresh, Build.MODEL)
+                }
+                if (result is AuthResult.Success) {
+                    tokenStore.saveTokens(
+                        result.accessToken,
+                        result.refreshToken,
+                        result.userId,
+                        result.accessTokenExpiresAtEpochMs,
+                        result.refreshTokenExpiresAtEpochMs
+                    )
+                    authState.value = AuthState.Authenticated(result.userId)
+                    return@LaunchedEffect
+                }
+                Log.d(TAG, "Refresh failed, falling back to Firebase")
+            }
+
+            // 3. Firebase fallback → LocalCacheOnly for existing users
             withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "Attempting initialization with 10 second timeout")
-                    withTimeout(10000L) {  // 10 second timeout
-                        val initUserId = repository.initializeUser()
-                        Log.d(TAG, "Firebase initialized successfully, userId: $initUserId")
-                        
-                        if (initUserId.isNotEmpty()) {
-                            userId.value = initUserId
-                            isInitialized.value = true
+                    withTimeout(10000L) {
+                        val firebaseUserId = repository.initializeUser()
+                        if (firebaseUserId.isNotEmpty()) {
+                            Log.d(TAG, "Firebase fallback: firebaseUserId=$firebaseUserId")
+                            authState.value = AuthState.LocalCacheOnly(firebaseUserId)
                         } else {
-                            Log.w(TAG, "userId is empty")
-                            initError.value = context.getString(R.string.init_error_failed_user)
+                            Log.w(TAG, "Firebase returned empty userId")
+                            authState.value = AuthState.Unauthenticated
                         }
                     }
                 } catch (e: TimeoutCancellationException) {
-                    Log.w(TAG, "Firebase initialization timed out after 10 seconds")
-                    initError.value = context.getString(R.string.init_error_timeout)
+                    Log.w(TAG, "Firebase init timed out")
+                    authState.value = AuthState.Unauthenticated
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error during Firebase init: ${e.message}", e)
-                    initError.value = e.localizedMessage ?: context.getString(R.string.init_error_unknown)
+                    Log.e(TAG, "Firebase init error: ${e.message}", e)
+                    authState.value = AuthState.Unauthenticated
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in LaunchedEffect: ${e.message}", e)
-            initError.value = e.localizedMessage ?: context.getString(R.string.init_error_unknown)
+            Log.e(TAG, "Auth init exception: ${e.message}", e)
+            authState.value = AuthState.Unauthenticated
         }
     }
 
-    if (!isInitialized.value) {
-        InitSkeleton(initError.value)
-        return
-    }
+    when {
+        authState.value is AuthState.Initializing -> {
+            InitSkeleton(null)
+        }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets.navigationBars,
-        bottomBar = {
-            HelpIdBottomBar(
-                currentRoute = currentScreen.value,
-                onRouteSelected = { route -> currentScreen.value = route }
+        currentScreen.value == "register" -> {
+            RegisterScreen(
+                authRepository = authRepository,
+                tokenStore = tokenStore,
+                onRegisterSuccess = { userId ->
+                    authState.value = AuthState.Authenticated(userId)
+                    currentScreen.value = "emergency"
+                },
+                onGoToLogin = { currentScreen.value = "login" }
             )
         }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            when (currentScreen.value) {
-                "emergency" -> {
-                    Log.d(TAG, "Rendering EmergencyScreen")
+
+        authState.value is AuthState.Unauthenticated || currentScreen.value == "login" -> {
+            LoginScreen(
+                authRepository = authRepository,
+                tokenStore = tokenStore,
+                onLoginSuccess = { userId ->
+                    authState.value = AuthState.Authenticated(userId)
+                    currentScreen.value = "emergency"
+                },
+                onGoToRegister = { currentScreen.value = "register" },
+                onDismiss = if (authState.value is AuthState.LocalCacheOnly) {
+                    { currentScreen.value = "" }
+                } else null
+            )
+        }
+
+        authState.value is AuthState.LocalCacheOnly -> {
+            val localState = authState.value as AuthState.LocalCacheOnly
+            Column(modifier = Modifier.fillMaxSize()) {
+                AuthSessionBanner(onLoginClick = { currentScreen.value = "login" })
+                Box(modifier = Modifier.weight(1f)) {
                     EmergencyScreen(
-                        userId = userId.value,
+                        userId = localState.firebaseUserId,
                         onLanguageClick = { currentScreen.value = "language" }
                     )
                 }
-                "qr" -> {
-                    Log.d(TAG, "Rendering QRScreen")
-                    QRScreen(
-                        userId = userId.value,
-                        onBackClick = { currentScreen.value = "emergency" }
+            }
+            if (currentScreen.value == "language") {
+                LanguageSelectionScreen(
+                    onLanguageSelected = { currentScreen.value = "" },
+                    onBackClick = { currentScreen.value = "" }
+                )
+            }
+        }
+
+        else -> {
+            val authenticatedState = authState.value as? AuthState.Authenticated
+            val userId = authenticatedState?.userId.orEmpty()
+
+            Scaffold(
+                contentWindowInsets = WindowInsets.navigationBars,
+                bottomBar = {
+                    HelpIdBottomBar(
+                        currentRoute = currentScreen.value,
+                        onRouteSelected = { route -> currentScreen.value = route }
                     )
                 }
-                "edit" -> {
-                    Log.d(TAG, "Rendering EditProfileScreen")
-                    EditProfileScreen(
-                        userId = userId.value,
-                        onBackClick = { currentScreen.value = "emergency" },
-                        onSaveSuccess = { currentScreen.value = "emergency" }
-                    )
-                }
-                "language" -> {
-                    Log.d(TAG, "Rendering LanguageSelectionScreen")
-                    LanguageSelectionScreen(
-                        onLanguageSelected = { currentScreen.value = "emergency" },
-                        onBackClick = { currentScreen.value = "emergency" }
-                    )
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    when (currentScreen.value) {
+                        "emergency" -> {
+                            Log.d(TAG, "Rendering EmergencyScreen")
+                            EmergencyScreen(
+                                userId = userId,
+                                onLanguageClick = { currentScreen.value = "language" }
+                            )
+                        }
+                        "qr" -> {
+                            Log.d(TAG, "Rendering QRScreen")
+                            QRScreen(
+                                userId = userId,
+                                onBackClick = { currentScreen.value = "emergency" }
+                            )
+                        }
+                        "edit" -> {
+                            Log.d(TAG, "Rendering EditProfileScreen")
+                            EditProfileScreen(
+                                userId = userId,
+                                onBackClick = { currentScreen.value = "emergency" },
+                                onSaveSuccess = { currentScreen.value = "emergency" }
+                            )
+                        }
+                        "language" -> {
+                            Log.d(TAG, "Rendering LanguageSelectionScreen")
+                            LanguageSelectionScreen(
+                                onLanguageSelected = { currentScreen.value = "emergency" },
+                                onBackClick = { currentScreen.value = "emergency" }
+                            )
+                        }
+                        else -> {
+                            currentScreen.value = "emergency"
+                        }
+                    }
                 }
             }
         }

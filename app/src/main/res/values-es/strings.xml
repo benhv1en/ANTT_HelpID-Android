@@ -139,4 +139,43 @@
     <string name="bottom_nav_id">ID</string>
     <string name="bottom_nav_qr">QR</string>
     <string name="bottom_nav_profile">Perfil</string>
+
+    <!-- Auth screens -->
+    <string name="auth_login_title">Iniciar sesión</string>
+    <string name="auth_login_subtitle">Inicia sesión para sincronizar tu perfil de emergencia</string>
+    <string name="auth_register_title">Crear cuenta</string>
+    <string name="auth_register_subtitle">Guarda tu perfil de emergencia de forma segura</string>
+    <string name="auth_field_email">Correo electrónico</string>
+    <string name="auth_field_password">Contraseña</string>
+    <string name="auth_field_confirm_password">Confirmar contraseña</string>
+    <string name="auth_field_display_name">Tu nombre (opcional)</string>
+    <string name="auth_btn_login">INICIAR SESIÓN</string>
+    <string name="auth_btn_register">REGISTRARSE</string>
+    <string name="auth_btn_logging_in">INICIANDO SESIÓN…</string>
+    <string name="auth_btn_registering">REGISTRANDO…</string>
+    <string name="auth_link_go_to_register">¿No tienes cuenta? Regístrate</string>
+    <string name="auth_link_go_to_login">¿Ya tienes cuenta? Inicia sesión</string>
+    <string name="auth_error_email_required">El correo electrónico es obligatorio</string>
+    <string name="auth_error_email_invalid">Ingresa un correo electrónico válido</string>
+    <string name="auth_error_email_too_long">El correo es demasiado largo (máx. 254 caracteres)</string>
+    <string name="auth_error_email_taken">Este correo ya está registrado. Intenta iniciar sesión.</string>
+    <string name="auth_error_password_required">La contraseña es obligatoria</string>
+    <string name="auth_error_password_too_short">La contraseña debe tener al menos 12 caracteres</string>
+    <string name="auth_error_password_too_long">La contraseña es demasiado larga</string>
+    <string name="auth_error_passwords_mismatch">Las contraseñas no coinciden</string>
+    <string name="auth_error_display_name_too_long">El nombre es demasiado largo (máx. 80 caracteres)</string>
+    <string name="auth_error_invalid_credentials">Correo o contraseña incorrectos</string>
+    <string name="auth_error_account_locked">Cuenta bloqueada temporalmente. Inténtalo más tarde.</string>
+    <string name="auth_error_network">Sin conexión. Verifica tu internet e intenta de nuevo.</string>
+    <string name="auth_error_server">Algo salió mal. Por favor inténtalo de nuevo.</string>
+    <string name="auth_banner_session_expired">Sesión expirada — viendo perfil guardado</string>
+    <string name="auth_banner_offline">Sin conexión — viendo perfil guardado</string>
+    <string name="auth_banner_login_again">Iniciar sesión de nuevo</string>
+    <string name="auth_logout">Cerrar sesión</string>
+    <string name="auth_logout_confirm_title">¿Cerrar sesión?</string>
+    <string name="auth_logout_confirm_body">Tu perfil de emergencia seguirá disponible sin conexión.</string>
+    <string name="auth_logout_confirm_yes">CERRAR SESIÓN</string>
+    <string name="auth_logout_confirm_no">CANCELAR</string>
+    <string name="auth_cd_show_password">Mostrar contraseña</string>
+    <string name="auth_cd_hide_password">Ocultar contraseña</string>
 </resources>

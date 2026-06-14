@@ -139,4 +139,43 @@
     <string name="bottom_nav_id">ID</string>
     <string name="bottom_nav_qr">QR</string>
     <string name="bottom_nav_profile">Profile</string>
+
+    <!-- Auth screens -->
+    <string name="auth_login_title">लॉग इन</string>
+    <string name="auth_login_subtitle">अपनी आपातकालीन प्रोफ़ाइल सिंक करने के लिए लॉग इन करें</string>
+    <string name="auth_register_title">खाता बनाएं</string>
+    <string name="auth_register_subtitle">अपनी आपातकालीन प्रोफ़ाइल सुरक्षित रूप से सहेजें</string>
+    <string name="auth_field_email">ईमेल</string>
+    <string name="auth_field_password">पासवर्ड</string>
+    <string name="auth_field_confirm_password">पासवर्ड की पुष्टि करें</string>
+    <string name="auth_field_display_name">आपका नाम (वैकल्पिक)</string>
+    <string name="auth_btn_login">लॉग इन करें</string>
+    <string name="auth_btn_register">पंजीकरण करें</string>
+    <string name="auth_btn_logging_in">लॉग इन हो रहा है…</string>
+    <string name="auth_btn_registering">पंजीकरण हो रहा है…</string>
+    <string name="auth_link_go_to_register">खाता नहीं है? पंजीकरण करें</string>
+    <string name="auth_link_go_to_login">खाता है? लॉग इन करें</string>
+    <string name="auth_error_email_required">ईमेल आवश्यक है</string>
+    <string name="auth_error_email_invalid">एक वैध ईमेल पता दर्ज करें</string>
+    <string name="auth_error_email_too_long">ईमेल बहुत लंबा है (अधिकतम 254 अक्षर)</string>
+    <string name="auth_error_email_taken">यह ईमेल पहले से पंजीकृत है। लॉग इन करने का प्रयास करें।</string>
+    <string name="auth_error_password_required">पासवर्ड आवश्यक है</string>
+    <string name="auth_error_password_too_short">पासवर्ड कम से कम 12 अक्षर का होना चाहिए</string>
+    <string name="auth_error_password_too_long">पासवर्ड बहुत लंबा है</string>
+    <string name="auth_error_passwords_mismatch">पासवर्ड मेल नहीं खाते</string>
+    <string name="auth_error_display_name_too_long">नाम बहुत लंबा है (अधिकतम 80 अक्षर)</string>
+    <string name="auth_error_invalid_credentials">अमान्य ईमेल या पासवर्ड</string>
+    <string name="auth_error_account_locked">खाता अस्थायी रूप से लॉक है। कृपया बाद में पुनः प्रयास करें।</string>
+    <string name="auth_error_network">कोई कनेक्शन नहीं। अपना इंटरनेट जांचें और पुनः प्रयास करें।</string>
+    <string name="auth_error_server">कुछ गलत हो गया। कृपया पुनः प्रयास करें।</string>
+    <string name="auth_banner_session_expired">सत्र समाप्त — कैश प्रोफ़ाइल देख रहे हैं</string>
+    <string name="auth_banner_offline">ऑफ़लाइन — कैश प्रोफ़ाइल देख रहे हैं</string>
+    <string name="auth_banner_login_again">फिर से लॉग इन करें</string>
+    <string name="auth_logout">लॉग आउट</string>
+    <string name="auth_logout_confirm_title">लॉग आउट करें?</string>
+    <string name="auth_logout_confirm_body">आपकी आपातकालीन प्रोफ़ाइल ऑफ़लाइन उपलब्ध रहेगी।</string>
+    <string name="auth_logout_confirm_yes">लॉग आउट करें</string>
+    <string name="auth_logout_confirm_no">रद्द करें</string>
+    <string name="auth_cd_show_password">पासवर्ड दिखाएं</string>
+    <string name="auth_cd_hide_password">पासवर्ड छिपाएं</string>
 </resources>

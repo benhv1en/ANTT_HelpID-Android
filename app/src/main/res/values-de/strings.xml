@@ -139,4 +139,43 @@
     <string name="bottom_nav_id">ID</string>
     <string name="bottom_nav_qr">QR</string>
     <string name="bottom_nav_profile">Profil</string>
+
+    <!-- Auth screens -->
+    <string name="auth_login_title">Anmelden</string>
+    <string name="auth_login_subtitle">Melde dich an, um dein Notfallprofil zu synchronisieren</string>
+    <string name="auth_register_title">Konto erstellen</string>
+    <string name="auth_register_subtitle">Speichere dein Notfallprofil sicher</string>
+    <string name="auth_field_email">E-Mail</string>
+    <string name="auth_field_password">Passwort</string>
+    <string name="auth_field_confirm_password">Passwort bestätigen</string>
+    <string name="auth_field_display_name">Dein Name (optional)</string>
+    <string name="auth_btn_login">ANMELDEN</string>
+    <string name="auth_btn_register">REGISTRIEREN</string>
+    <string name="auth_btn_logging_in">WIRD ANGEMELDET…</string>
+    <string name="auth_btn_registering">WIRD REGISTRIERT…</string>
+    <string name="auth_link_go_to_register">Kein Konto? Registrieren</string>
+    <string name="auth_link_go_to_login">Schon ein Konto? Anmelden</string>
+    <string name="auth_error_email_required">E-Mail ist erforderlich</string>
+    <string name="auth_error_email_invalid">Gib eine gültige E-Mail-Adresse ein</string>
+    <string name="auth_error_email_too_long">E-Mail ist zu lang (max. 254 Zeichen)</string>
+    <string name="auth_error_email_taken">Diese E-Mail ist bereits registriert. Versuche dich anzumelden.</string>
+    <string name="auth_error_password_required">Passwort ist erforderlich</string>
+    <string name="auth_error_password_too_short">Passwort muss mindestens 12 Zeichen haben</string>
+    <string name="auth_error_password_too_long">Passwort ist zu lang</string>
+    <string name="auth_error_passwords_mismatch">Passwörter stimmen nicht überein</string>
+    <string name="auth_error_display_name_too_long">Name ist zu lang (max. 80 Zeichen)</string>
+    <string name="auth_error_invalid_credentials">Ungültige E-Mail oder Passwort</string>
+    <string name="auth_error_account_locked">Konto vorübergehend gesperrt. Bitte später erneut versuchen.</string>
+    <string name="auth_error_network">Keine Verbindung. Prüfe deine Internetverbindung und versuche es erneut.</string>
+    <string name="auth_error_server">Etwas ist schiefgelaufen. Bitte erneut versuchen.</string>
+    <string name="auth_banner_session_expired">Sitzung abgelaufen — zwischengespeichertes Profil wird angezeigt</string>
+    <string name="auth_banner_offline">Offline — zwischengespeichertes Profil wird angezeigt</string>
+    <string name="auth_banner_login_again">Erneut anmelden</string>
+    <string name="auth_logout">Abmelden</string>
+    <string name="auth_logout_confirm_title">Abmelden?</string>
+    <string name="auth_logout_confirm_body">Dein Notfallprofil bleibt offline verfügbar.</string>
+    <string name="auth_logout_confirm_yes">ABMELDEN</string>
+    <string name="auth_logout_confirm_no">ABBRECHEN</string>
+    <string name="auth_cd_show_password">Passwort anzeigen</string>
+    <string name="auth_cd_hide_password">Passwort verbergen</string>
 </resources>

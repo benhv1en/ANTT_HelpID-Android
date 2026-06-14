@@ -151,4 +151,43 @@
     <string name="bottom_nav_id">ID</string>
     <string name="bottom_nav_qr">QR</string>
     <string name="bottom_nav_profile">Profile</string>
+
+    <!-- Auth screens -->
+    <string name="auth_login_title">Login</string>
+    <string name="auth_login_subtitle">Sign in to sync your emergency profile</string>
+    <string name="auth_register_title">Create Account</string>
+    <string name="auth_register_subtitle">Save your emergency profile securely</string>
+    <string name="auth_field_email">Email</string>
+    <string name="auth_field_password">Password</string>
+    <string name="auth_field_confirm_password">Confirm Password</string>
+    <string name="auth_field_display_name">Your Name (optional)</string>
+    <string name="auth_btn_login">LOGIN</string>
+    <string name="auth_btn_register">REGISTER</string>
+    <string name="auth_btn_logging_in">LOGGING IN…</string>
+    <string name="auth_btn_registering">REGISTERING…</string>
+    <string name="auth_link_go_to_register">Don\'t have an account? Register</string>
+    <string name="auth_link_go_to_login">Already have an account? Login</string>
+    <string name="auth_error_email_required">Email is required</string>
+    <string name="auth_error_email_invalid">Enter a valid email address</string>
+    <string name="auth_error_email_too_long">Email is too long (max 254 characters)</string>
+    <string name="auth_error_email_taken">This email is already registered. Try logging in.</string>
+    <string name="auth_error_password_required">Password is required</string>
+    <string name="auth_error_password_too_short">Password must be at least 12 characters</string>
+    <string name="auth_error_password_too_long">Password is too long</string>
+    <string name="auth_error_passwords_mismatch">Passwords do not match</string>
+    <string name="auth_error_display_name_too_long">Name is too long (max 80 characters)</string>
+    <string name="auth_error_invalid_credentials">Invalid email or password</string>
+    <string name="auth_error_account_locked">Account temporarily locked. Please try again later.</string>
+    <string name="auth_error_network">No connection. Check your internet and try again.</string>
+    <string name="auth_error_server">Something went wrong. Please try again.</string>
+    <string name="auth_banner_session_expired">Session expired — viewing cached profile</string>
+    <string name="auth_banner_offline">Offline — viewing cached profile</string>
+    <string name="auth_banner_login_again">Login again</string>
+    <string name="auth_logout">Logout</string>
+    <string name="auth_logout_confirm_title">Log out?</string>
+    <string name="auth_logout_confirm_body">Your emergency profile will remain available offline.</string>
+    <string name="auth_logout_confirm_yes">LOG OUT</string>
+    <string name="auth_logout_confirm_no">CANCEL</string>
+    <string name="auth_cd_show_password">Show password</string>
+    <string name="auth_cd_hide_password">Hide password</string>
 </resources>

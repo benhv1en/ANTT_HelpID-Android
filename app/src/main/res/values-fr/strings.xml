@@ -139,4 +139,43 @@
     <string name="bottom_nav_id">ID</string>
     <string name="bottom_nav_qr">QR</string>
     <string name="bottom_nav_profile">Profil</string>
+
+    <!-- Auth screens -->
+    <string name="auth_login_title">Connexion</string>
+    <string name="auth_login_subtitle">Connectez-vous pour synchroniser votre profil d\'urgence</string>
+    <string name="auth_register_title">Créer un compte</string>
+    <string name="auth_register_subtitle">Sauvegardez votre profil d\'urgence en sécurité</string>
+    <string name="auth_field_email">E-mail</string>
+    <string name="auth_field_password">Mot de passe</string>
+    <string name="auth_field_confirm_password">Confirmer le mot de passe</string>
+    <string name="auth_field_display_name">Votre nom (optionnel)</string>
+    <string name="auth_btn_login">CONNEXION</string>
+    <string name="auth_btn_register">S\'INSCRIRE</string>
+    <string name="auth_btn_logging_in">CONNEXION EN COURS…</string>
+    <string name="auth_btn_registering">INSCRIPTION EN COURS…</string>
+    <string name="auth_link_go_to_register">Pas de compte ? S\'inscrire</string>
+    <string name="auth_link_go_to_login">Déjà un compte ? Se connecter</string>
+    <string name="auth_error_email_required">L\'e-mail est obligatoire</string>
+    <string name="auth_error_email_invalid">Entrez une adresse e-mail valide</string>
+    <string name="auth_error_email_too_long">L\'e-mail est trop long (max. 254 caractères)</string>
+    <string name="auth_error_email_taken">Cet e-mail est déjà enregistré. Essayez de vous connecter.</string>
+    <string name="auth_error_password_required">Le mot de passe est obligatoire</string>
+    <string name="auth_error_password_too_short">Le mot de passe doit comporter au moins 12 caractères</string>
+    <string name="auth_error_password_too_long">Le mot de passe est trop long</string>
+    <string name="auth_error_passwords_mismatch">Les mots de passe ne correspondent pas</string>
+    <string name="auth_error_display_name_too_long">Le nom est trop long (max. 80 caractères)</string>
+    <string name="auth_error_invalid_credentials">E-mail ou mot de passe invalide</string>
+    <string name="auth_error_account_locked">Compte temporairement verrouillé. Veuillez réessayer plus tard.</string>
+    <string name="auth_error_network">Pas de connexion. Vérifiez votre internet et réessayez.</string>
+    <string name="auth_error_server">Quelque chose s\'est mal passé. Veuillez réessayer.</string>
+    <string name="auth_banner_session_expired">Session expirée — profil en cache affiché</string>
+    <string name="auth_banner_offline">Hors ligne — profil en cache affiché</string>
+    <string name="auth_banner_login_again">Se reconnecter</string>
+    <string name="auth_logout">Déconnexion</string>
+    <string name="auth_logout_confirm_title">Se déconnecter ?</string>
+    <string name="auth_logout_confirm_body">Votre profil d\'urgence restera disponible hors ligne.</string>
+    <string name="auth_logout_confirm_yes">SE DÉCONNECTER</string>
+    <string name="auth_logout_confirm_no">ANNULER</string>
+    <string name="auth_cd_show_password">Afficher le mot de passe</string>
+    <string name="auth_cd_hide_password">Masquer le mot de passe</string>
 </resources>

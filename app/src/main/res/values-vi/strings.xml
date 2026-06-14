@@ -151,4 +151,43 @@
     <string name="bottom_nav_id">ID</string>
     <string name="bottom_nav_qr">QR</string>
     <string name="bottom_nav_profile">Hồ sơ</string>
+
+    <!-- Auth screens -->
+    <string name="auth_login_title">Đăng nhập</string>
+    <string name="auth_login_subtitle">Đăng nhập để đồng bộ hồ sơ khẩn cấp</string>
+    <string name="auth_register_title">Tạo tài khoản</string>
+    <string name="auth_register_subtitle">Lưu hồ sơ khẩn cấp của bạn an toàn</string>
+    <string name="auth_field_email">Email</string>
+    <string name="auth_field_password">Mật khẩu</string>
+    <string name="auth_field_confirm_password">Xác nhận mật khẩu</string>
+    <string name="auth_field_display_name">Tên của bạn (không bắt buộc)</string>
+    <string name="auth_btn_login">ĐĂNG NHẬP</string>
+    <string name="auth_btn_register">ĐĂNG KÝ</string>
+    <string name="auth_btn_logging_in">ĐANG ĐĂNG NHẬP…</string>
+    <string name="auth_btn_registering">ĐANG ĐĂNG KÝ…</string>
+    <string name="auth_link_go_to_register">Chưa có tài khoản? Đăng ký</string>
+    <string name="auth_link_go_to_login">Đã có tài khoản? Đăng nhập</string>
+    <string name="auth_error_email_required">Email là bắt buộc</string>
+    <string name="auth_error_email_invalid">Nhập địa chỉ email hợp lệ</string>
+    <string name="auth_error_email_too_long">Email quá dài (tối đa 254 ký tự)</string>
+    <string name="auth_error_email_taken">Email này đã được đăng ký. Hãy thử đăng nhập.</string>
+    <string name="auth_error_password_required">Mật khẩu là bắt buộc</string>
+    <string name="auth_error_password_too_short">Mật khẩu phải có ít nhất 12 ký tự</string>
+    <string name="auth_error_password_too_long">Mật khẩu quá dài</string>
+    <string name="auth_error_passwords_mismatch">Mật khẩu không khớp</string>
+    <string name="auth_error_display_name_too_long">Tên quá dài (tối đa 80 ký tự)</string>
+    <string name="auth_error_invalid_credentials">Email hoặc mật khẩu không đúng</string>
+    <string name="auth_error_account_locked">Tài khoản tạm bị khóa. Vui lòng thử lại sau.</string>
+    <string name="auth_error_network">Không có kết nối. Kiểm tra mạng và thử lại.</string>
+    <string name="auth_error_server">Đã xảy ra lỗi. Vui lòng thử lại.</string>
+    <string name="auth_banner_session_expired">Phiên hết hạn — đang xem hồ sơ đã lưu</string>
+    <string name="auth_banner_offline">Ngoại tuyến — đang xem hồ sơ đã lưu</string>
+    <string name="auth_banner_login_again">Đăng nhập lại</string>
+    <string name="auth_logout">Đăng xuất</string>
+    <string name="auth_logout_confirm_title">Đăng xuất?</string>
+    <string name="auth_logout_confirm_body">Hồ sơ khẩn cấp vẫn có thể xem khi không có mạng.</string>
+    <string name="auth_logout_confirm_yes">ĐĂNG XUẤT</string>
+    <string name="auth_logout_confirm_no">HỦY</string>
+    <string name="auth_cd_show_password">Hiện mật khẩu</string>
+    <string name="auth_cd_hide_password">Ẩn mật khẩu</string>
 </resources>
