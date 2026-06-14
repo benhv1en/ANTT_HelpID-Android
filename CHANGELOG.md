@@ -1,3 +1,27 @@
+14/06/2026 23:30:00
+- Implement API profile và emergency link cho backend `HelpId.Api`: `GET/PUT /api/v1/profile` với JWT auth, ownership policy, validation 422 (blood group enum, language enum, E.164 phone, list count/length), patch semantics cho list null; `POST /api/v1/emergency-links/mint` sinh hoặc tái dùng public key `HID-{16 hex}`, ký public profile JWT HS256 với `jti` nonce, trả URL; `GET /api/v1/public/profile?key=...&t=...` validate key `HID-*`, validate JWT, trả whitelist field (không có userId/email/language/token), header `Cache-Control: no-store`, `Referrer-Policy: no-referrer`; thêm `ProfileApiTests` (6 test) và `EmergencyLinkApiTests` (6 test); fix list-replace logic (chỉ RemoveRange khi field không null), fix status code validation 422, thêm `jti` vào public profile JWT để token luôn khác nhau sau mỗi mint; tất cả 30/30 test pass.
+
+14/06/2026 22:49:46
+- Kiểm tra và chạy lại toàn bộ 18 test auth API backend `HelpId.Api`; xác nhận build thành công, 18/18 test pass gồm register/duplicate email, login đúng/sai, refresh token rotation, logout revoke, lockout sau 5 lần sai, SQL injection input và `me` theo JWT subject; ghi kết quả vào `passed-testcases.md`.
+
+14/06/2026 19:26:09
+- Implement API auth backend `/api/v1/auth/register`, `login`, `refresh`, `logout`, `me` với PBKDF2 password hash, JWT access token, refresh token hash/rotation/revoke, validation DTO, lockout, lỗi problem response generic và test auth/injection.
+
+14/06/2026 19:11:04
+- Tạo EF Core migration `InitialAuthSchema` cho backend `HelpId.Api`, chạy `database update` sinh SQLite dev local, kiểm schema table/index/foreign key/role-permission seed và xác nhận file `.db` local đang bị ignore.
+
+14/06/2026 19:05:34
+- Bổ sung phân quyền dữ liệu cho backend SQLite bằng RBAC code-first (`Roles`, `Permissions`, `UserRoles`, `RolePermissions`), seed `User`/`Admin`, policy/handler ASP.NET Core, ownership check theo JWT subject và public emergency profile qua token ngắn hạn với DTO whitelist; thêm test cross-user/admin/public profile.
+
+14/06/2026 18:48:00
+- Thêm code-first entity/model cho backend SQLite gồm `Users`, `RefreshTokens`, `UserProfiles`, `ProfileAllergies`, `MedicalNotes`, `EmergencyContacts`, `PublicProfileLinks`, `AuditEvents`; cấu hình DbContext relationship/index/max length/delete behavior và thêm test metadata/schema EF Core.
+
+14/06/2026 18:38:10
+- Tạo skeleton backend `backend/HelpId.Api/` bằng ASP.NET Core Web API `net8.0`, EF Core SQLite, `HelpIdDbContext`, endpoint `/health`, appsettings mẫu không chứa secret, README cách chạy và ignore artifact .NET/SQLite local.
+
+14/06/2026 18:30:18
+- Tạo `harness-engineering/contract-dang-ky-dang-nhap.md` chốt contract đăng ký/đăng nhập; cập nhật `harness-engineering/uml-use-case.puml`, xóa và render lại `harness-engineering/uml-use-case.png` cho các use-case auth/backend/public profile mới.
+
 14/06/2026 17:17:40
 - Cập nhật `AGENTS.md` để log testcase bắt buộc có thêm `cách test` và khi testcase từng fail đã pass lại thì phải xóa entry tương ứng khỏi `failed-testcases.md`; chuẩn hóa entry hiện có trong `passed-testcases.md` theo format mới.
 

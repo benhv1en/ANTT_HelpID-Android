@@ -20,6 +20,14 @@ helper-id/.vercel/
 helper-id/.env
 helper-id/.env.*
 
+
+# .NET/backend artifacts
+backend/**/bin/
+backend/**/obj/
+backend/**/*.db
+backend/**/*.db-shm
+backend/**/*.db-wal
+
 # IDE/system
 .idea/
 .vscode/
