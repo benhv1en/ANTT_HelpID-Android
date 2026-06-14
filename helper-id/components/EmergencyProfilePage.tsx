@@ -13,6 +13,46 @@ type Profile = {
   medicalNotes: string[];
 };
 
+const MAX_STRING_LENGTH = 500;
+const MAX_LIST_ITEMS = 50;
+
+
+function pickString(value: unknown) {
+  return typeof value === 'string' ? value.slice(0, MAX_STRING_LENGTH) : '';
+}
+
+function pickStringList(value: unknown) {
+  return Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === 'string')
+        .slice(0, MAX_LIST_ITEMS)
+        .map((item) => item.slice(0, MAX_STRING_LENGTH))
+    : [];
+}
+
+function pickContacts(value: unknown): EmergencyContact[] {
+  return Array.isArray(value)
+    ? value
+        .slice(0, MAX_LIST_ITEMS)
+        .map((contact) => ({
+          name: pickString(contact?.name),
+          phone: pickString(contact?.phone),
+        }))
+        .filter((contact) => contact.name || contact.phone)
+    : [];
+}
+
+function sanitizeProfile(profile: any): Profile {
+  return {
+    name: pickString(profile?.name),
+    bloodGroup: pickString(profile?.bloodGroup),
+    allergies: pickStringList(profile?.allergies),
+    emergencyContacts: pickContacts(profile?.emergencyContacts),
+    address: pickString(profile?.address),
+    medicalNotes: pickStringList(profile?.medicalNotes),
+  };
+}
+
 function setNoIndexMeta() {
   const name = 'robots';
   const content = 'noindex,nofollow,noarchive';
@@ -32,6 +72,7 @@ export const EmergencyProfilePage: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const deepLinkUrl = useMemo(() => {
@@ -51,20 +92,25 @@ export const EmergencyProfilePage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
+        setErrorStatus(null);
         setProfile(null);
 
         if (!publicKey || !token) {
+          setErrorStatus(400);
           throw new Error('Invalid link');
         }
 
-        const res = await fetch(`/api/profile?key=${encodeURIComponent(publicKey)}&t=${encodeURIComponent(token)}`);
+        const res = await fetch(`/api/profile?key=${encodeURIComponent(publicKey)}&t=${encodeURIComponent(token)}`, {
+          cache: 'no-store',
+        });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
+          if (!cancelled) setErrorStatus(res.status);
           throw new Error(json?.error || 'Failed to load profile');
         }
 
         if (!cancelled) {
-          setProfile(json?.profile || null);
+          setProfile(sanitizeProfile(json?.profile));
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Something went wrong');
@@ -125,7 +171,13 @@ export const EmergencyProfilePage: React.FC = () => {
             <div className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-sm">
               <div className="text-red-600 font-semibold mb-2">Unable to show details</div>
               <div className="text-gray-600">{error}</div>
-              <div className="mt-6 text-sm text-gray-500">This link may have expired (tokens expire after a few hours).</div>
+              <div className="mt-6 text-sm text-gray-500">
+                {errorStatus === 401 || errorStatus === 403
+                  ? 'This link has expired. Ask the person to share a new link from the app.'
+                  : errorStatus === 404
+                  ? 'Profile not found. The link may have been revoked.'
+                  : 'Something went wrong. Please try again later.'}
+              </div>
             </div>
           )}
 

@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using HelpId.Api.Profiles;
 using HelpId.Api.Security;
 
@@ -26,8 +25,7 @@ public static class EmergencyLinkEndpoints
         CancellationToken cancellationToken
     )
     {
-        httpContext.Response.Headers.CacheControl = "no-store";
-        httpContext.Response.Headers.Append("Referrer-Policy", "no-referrer");
+        AddSensitiveResponseHeaders(httpContext);
 
         var userId = currentUserContext.GetRequiredUserId();
         var result = await emergencyLinkService.MintAsync(userId, request.PublicKey, cancellationToken);
@@ -61,8 +59,7 @@ public static class EmergencyLinkEndpoints
         CancellationToken cancellationToken
     )
     {
-        httpContext.Response.Headers.CacheControl = "no-store";
-        httpContext.Response.Headers.Append("Referrer-Policy", "no-referrer");
+        AddSensitiveResponseHeaders(httpContext);
 
         if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(t))
         {
@@ -100,5 +97,14 @@ public static class EmergencyLinkEndpoints
                 statusCode: StatusCodes.Status400BadRequest
             )
         };
+    }
+
+    private static void AddSensitiveResponseHeaders(HttpContext httpContext)
+    {
+        httpContext.Response.Headers.CacheControl = "no-store";
+        httpContext.Response.Headers.Append("Pragma", "no-cache");
+        httpContext.Response.Headers.Append("Expires", "0");
+        httpContext.Response.Headers.Append("X-Robots-Tag", "noindex, nofollow, noarchive");
+        httpContext.Response.Headers.Append("Referrer-Policy", "no-referrer");
     }
 }

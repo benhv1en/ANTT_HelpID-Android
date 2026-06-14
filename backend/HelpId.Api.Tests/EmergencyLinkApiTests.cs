@@ -252,7 +252,7 @@ public sealed class EmergencyLinkApiTests
     }
 
     [Fact]
-    public async Task Public_profile_adds_no_store_cache_header()
+    public async Task Public_profile_adds_no_store_and_noindex_headers()
     {
         await using var env = await EmergencyLinkTestEnvironment.CreateAsync();
         var user = await env.RegisterAsync("user@example.test");
@@ -270,6 +270,9 @@ public sealed class EmergencyLinkApiTests
         )).ExecuteAsync(env.HttpContext);
 
         Assert.Equal("no-store", env.HttpContext.Response.Headers.CacheControl.ToString());
+        Assert.Equal("no-cache", env.HttpContext.Response.Headers["Pragma"].ToString());
+        Assert.Equal("0", env.HttpContext.Response.Headers["Expires"].ToString());
+        Assert.Equal("noindex, nofollow, noarchive", env.HttpContext.Response.Headers["X-Robots-Tag"].ToString());
         Assert.Equal("no-referrer", env.HttpContext.Response.Headers["Referrer-Policy"].ToString());
     }
 

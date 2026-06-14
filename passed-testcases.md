@@ -1,5 +1,19 @@
 # Passed Testcases
 
+15/06/2026 01:53:10
+- Mục đích/nội dung testcase: Kiểm chứng UX/security web public emergency profile sau khi nối backend mới: không cache PII ở fetch/proxy, proxy và UI chỉ giữ field whitelist, lỗi token hết hạn rõ ràng, header no-store/noindex ở proxy/backend public profile, deep link Android compile được.
+- Cách test: Chạy `cd helper-id && npm run build`; `cd helper-id && npx tsc --noEmit`; `dotnet test backend/HelpId.Api.Tests/HelpId.Api.Tests.csproj`; `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`; `git diff --check`. Test runner chỉ trả kết quả ở mức command/suite cho web build/typecheck và Android build.
+- Expected result: Vite build thành công, TypeScript không lỗi, backend test pass, Android debug APK build thành công với JDK hỗ trợ, diff không có whitespace error.
+- Actual result: `npm run build` PASS (`✓ built in 2.15s`); `npx tsc --noEmit` PASS (exit code 0, không output lỗi); backend test PASS (`Passed: 30, Failed: 0, Total: 30`); Android assemble PASS với JDK 17 (`BUILD SUCCESSFUL in 33s`); `git diff --check` PASS (không output lỗi).
+- Kết luận: PASS.
+
+15/06/2026 20:00:00
+- Mục đích/nội dung testcase: Build và type-check web `helper-id` sau khi chuyển `api/profile.js` từ Firebase/Firestore sang proxy backend `GET /api/v1/public/profile`; cải thiện error messages trong `EmergencyProfilePage.tsx` (401 vs 404 vs other); chạy backend test xác nhận không regression.
+- Cách test: `cd helper-id && npm run build`; `cd helper-id && npx tsc --noEmit`; `cd backend/HelpId.Api.Tests && dotnet test`.
+- Expected result: Vite build SUCCESSFUL, tsc 0 error, backend 30/30 pass.
+- Actual result: `vite build` → `✓ built in 2.50s` (303.58 kB JS, 0 warning); `tsc --noEmit` → no output (clean); `dotnet test` → `Passed! - Failed: 0, Passed: 30, Skipped: 0, Total: 30`.
+- Kết luận: PASS.
+
 16/06/2026 02:30:00
 - Mục đích/nội dung testcase: Build debug APK, chạy unit test và lint sau khi audit và sửa frontend Android auth (layout shift từ supportingText, ghost button không disable khi loading).
 - Cách test: Chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`.

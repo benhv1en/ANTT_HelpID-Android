@@ -70,10 +70,10 @@ NHÓM 3: FRONTEND WEB - PUBLIC PROFILE VÀ API PROXY
 ============================================================
 
 --- PROMPT 16: Nối web public emergency profile với backend mới ---
-Mày hãy đọc `AGENTS.md` và `harness-engineering/ke-hoach.md`, rồi cập nhật frontend web `helper-id` để public emergency page `/e/:publicKey` lấy dữ liệu từ backend public profile API mới hoặc qua Vercel API proxy an toàn. Không đưa secret vào Vite bundle, giữ noindex/noarchive/no-store, giữ whitelist field, xử lý missing token, expired token, invalid public key và loading/error states. Chạy `cd helper-id && npm run build` và `npx tsc --noEmit` nếu phù hợp, chạy backend test nếu sửa backend/proxy, cập nhật `CHANGELOG.md`.
+Mày hãy đọc `AGENTS.md` và `harness-engineering/ke-hoach.md`, rồi cập nhật frontend web `helper-id` để public emergency page `/e/:publicKey` lấy dữ liệu từ backend public profile API mới hoặc qua Vercel API proxy an toàn. Không đưa secret vào Vite bundle, giữ noindex/noarchive/no-store, giữ whitelist field, xử lý missing token, expired token, invalid public key và loading/error states. Chạy `cd helper-id && npm run build` và `npx tsc --noEmit` nếu phù hợp, chạy backend test nếu sửa backend/proxy, cập nhật `CHANGELOG.md`. (done)
 
 --- PROMPT 17: Rà soát frontend web public profile sau auth/backend migration ---
-Mày hãy đọc `AGENTS.md` và `harness-engineering/ke-hoach.md`, rồi rà soát UX/security của web public emergency profile sau khi nối backend mới: không có analytics/tracking mặc định, không cache PII, không render field chưa whitelist, deep link Android vẫn đúng, lỗi token hết hạn rõ ràng, header no-store/noindex còn nguyên ở API/proxy. Chạy web build/typecheck và cập nhật `CHANGELOG.md`.
+Mày hãy đọc `AGENTS.md` và `harness-engineering/ke-hoach.md`, rồi rà soát UX/security của web public emergency profile sau khi nối backend mới: không có analytics/tracking mặc định, không cache PII, không render field chưa whitelist, deep link Android vẫn đúng, lỗi token hết hạn rõ ràng, header no-store/noindex còn nguyên ở API/proxy. Chạy web build/typecheck và cập nhật `CHANGELOG.md`. (done)
 
 ============================================================
 NHÓM 4: INTEGRATION, HARDENING, CLEANUP

@@ -96,7 +96,8 @@ note bottom of Backend
   Backend lấy userId từ JWT sub claim,
   không tin userId client gửi trong body.
   Public profile chỉ trả whitelist field,
-  header Cache-Control: no-store.
+  header Cache-Control: no-store
+  và X-Robots-Tag: noindex.
 end note
 
 note bottom of UC_ValidateAntiInjection

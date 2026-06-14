@@ -63,7 +63,8 @@ GeminiApi -- UC_ProxyGemini
 note right of UC_WebFetchPublicProfile
   Backend trả whitelist field
   (không có userId/email/language).
-  Header Cache-Control: no-store.
+  Header Cache-Control: no-store;
+  proxy và route /e/* có noindex.
 end note
 
 note bottom of UC_LegacyMint

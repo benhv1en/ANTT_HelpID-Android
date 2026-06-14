@@ -37,6 +37,7 @@ rectangle "Ứng dụng Android HelpID" as AndroidApp {
   usecase "Refresh access token" as UC_AndroidRefreshToken
   usecase "Logout và xóa token local" as UC_AndroidLogout
   usecase "Xem ID / hồ sơ khẩn cấp\noffline-first" as UC_ViewEmergencyId
+  usecase "Mở app từ deep link\nhelpid://e/{publicKey}" as UC_OpenAndroidDeepLink
   usecase "Xem hồ sơ local cache\nkhi offline hoặc token lỗi" as UC_ViewLocalCache
   usecase "Chỉnh sửa hồ sơ y tế" as UC_EditProfile
   usecase "Chọn liên hệ từ danh bạ" as UC_PickContact
@@ -67,6 +68,7 @@ User -- UC_AndroidLogin
 User -- UC_AndroidRestoreSession
 User -- UC_AndroidLogout
 User -- UC_ViewEmergencyId
+Responder -- UC_OpenAndroidDeepLink
 User -- UC_EditProfile
 User -- UC_ChangeLanguage
 User -- UC_CallEmergency
@@ -91,6 +93,7 @@ UC_AndroidRegister ..> BackendApi : <<include>>
 UC_AndroidLogin ..> BackendApi : <<include>>
 UC_AndroidRefreshToken ..> BackendApi : <<include>>
 
+UC_OpenAndroidDeepLink ..> UC_ViewEmergencyId : <<include>>
 UC_ViewEmergencyId ..> UC_ViewLocalCache : <<include>>
 UC_ViewEmergencyId ..> UC_SyncFirebaseProfile : <<extend>>
 UC_ViewLocalCache ..> UC_SaveLocal : <<include>>
