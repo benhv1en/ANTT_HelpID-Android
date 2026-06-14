@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -53,7 +54,9 @@ import androidx.compose.ui.unit.sp
 import com.helpid.app.data.AuthResult
 import com.helpid.app.data.AuthTokenStore
 import com.helpid.app.data.FirebaseRepository
-import com.helpid.app.data.StubAuthRepository
+import com.helpid.app.data.HelpIdApiAuthRepository
+import com.helpid.app.data.HelpIdApiEmergencyLinkRepository
+import com.helpid.app.data.local.AppDatabase
 import com.helpid.app.ui.EditProfileScreen
 import com.helpid.app.ui.EmergencyScreen
 import com.helpid.app.ui.LanguageSelectionScreen
@@ -67,6 +70,7 @@ import com.helpid.app.ui.theme.HelpIDTheme
 import com.helpid.app.utils.LanguageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -75,7 +79,7 @@ private const val TAG = "HelpID"
 sealed class AuthState {
     object Initializing : AuthState()
     data class Authenticated(val userId: String) : AuthState()
-    data class LocalCacheOnly(val firebaseUserId: String) : AuthState()
+    data class LocalCacheOnly(val userId: String, val isOffline: Boolean = false) : AuthState()
     object Unauthenticated : AuthState()
 }
 
@@ -153,7 +157,7 @@ private fun InitSkeleton(errorText: String?) {
 }
 
 @Composable
-private fun AuthSessionBanner(onLoginClick: () -> Unit) {
+private fun AuthSessionBanner(message: String, onLoginClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -163,7 +167,7 @@ private fun AuthSessionBanner(onLoginClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = stringResource(R.string.auth_banner_session_expired),
+            text = message,
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onErrorContainer,
             modifier = Modifier.weight(1f)
@@ -188,12 +192,38 @@ fun AppNavigation(initialScreen: String = "emergency") {
     val context = LocalContext.current
     val repository = remember { FirebaseRepository(context) }
     val tokenStore = remember { AuthTokenStore(context) }
-    val authRepository = remember { StubAuthRepository() }
+    val authRepository = remember { HelpIdApiAuthRepository(context) }
+    val emergencyLinkRepository = remember { HelpIdApiEmergencyLinkRepository(context, tokenStore, authRepository) }
+    val scope = rememberCoroutineScope()
+
+    fun performLogout() {
+        scope.launch {
+            val userId = tokenStore.getUserId().orEmpty()
+            val storedRefresh = tokenStore.getRefreshToken()
+            if (!storedRefresh.isNullOrBlank()) {
+                withContext(Dispatchers.IO) {
+                    try { authRepository.logout(storedRefresh) } catch (_: Exception) { }
+                }
+            }
+            tokenStore.clearTokens()
+            val hasCache = userId.isNotEmpty() && withContext(Dispatchers.IO) {
+                try {
+                    AppDatabase.getDatabase(context)
+                        .userProfileDao().getUserProfile(userId) != null
+                } catch (_: Exception) { false }
+            }
+            currentScreen.value = "emergency"
+            authState.value = if (hasCache)
+                AuthState.LocalCacheOnly(userId, isOffline = false)
+            else
+                AuthState.Unauthenticated
+        }
+    }
 
     LaunchedEffect(Unit) {
         Log.d(TAG, "LaunchedEffect: starting auth init")
         try {
-            // 1. Valid access token in store → skip network
+            // 1. Valid access token in store → skip network entirely
             if (tokenStore.hasValidSession()) {
                 val uid = tokenStore.getUserId().orEmpty()
                 Log.d(TAG, "Token valid, userId=$uid")
@@ -201,35 +231,75 @@ fun AppNavigation(initialScreen: String = "emergency") {
                 return@LaunchedEffect
             }
 
-            // 2. Attempt token refresh
+            // 2. Attempt token refresh — read userId before any state mutation
             val storedRefresh = tokenStore.getRefreshToken()
             if (storedRefresh != null) {
+                val storedUserId = tokenStore.getUserId().orEmpty()
                 Log.d(TAG, "Attempting token refresh")
                 val result = withContext(Dispatchers.IO) {
                     authRepository.refresh(storedRefresh, Build.MODEL)
                 }
-                if (result is AuthResult.Success) {
-                    tokenStore.saveTokens(
-                        result.accessToken,
-                        result.refreshToken,
-                        result.userId,
-                        result.accessTokenExpiresAtEpochMs,
-                        result.refreshTokenExpiresAtEpochMs
-                    )
-                    authState.value = AuthState.Authenticated(result.userId)
-                    return@LaunchedEffect
+                when (result) {
+                    is AuthResult.Success -> {
+                        tokenStore.saveTokens(
+                            result.accessToken,
+                            result.refreshToken,
+                            result.userId,
+                            result.accessTokenExpiresAtEpochMs,
+                            result.refreshTokenExpiresAtEpochMs
+                        )
+                        authState.value = AuthState.Authenticated(result.userId)
+                        return@LaunchedEffect
+                    }
+                    is AuthResult.NetworkError -> {
+                        // Offline — show cached profile immediately, skip Firebase
+                        Log.w(TAG, "Refresh failed: device offline")
+                        val hasCache = storedUserId.isNotEmpty() && withContext(Dispatchers.IO) {
+                            try {
+                                AppDatabase.getDatabase(context)
+                                    .userProfileDao().getUserProfile(storedUserId) != null
+                            } catch (_: Exception) { false }
+                        }
+                        authState.value = if (hasCache)
+                            AuthState.LocalCacheOnly(storedUserId, isOffline = true)
+                        else
+                            AuthState.Unauthenticated
+                        return@LaunchedEffect
+                    }
+                    is AuthResult.ApiError -> {
+                        if (result.httpStatus in 400..403) {
+                            // Invalid or revoked refresh token — discard credentials
+                            Log.w(TAG, "Refresh failed: invalid token (${result.httpStatus})")
+                            tokenStore.clearTokens()
+                            val hasCache = storedUserId.isNotEmpty() && withContext(Dispatchers.IO) {
+                                try {
+                                    AppDatabase.getDatabase(context)
+                                        .userProfileDao().getUserProfile(storedUserId) != null
+                                } catch (_: Exception) { false }
+                            }
+                            authState.value = if (hasCache)
+                                AuthState.LocalCacheOnly(storedUserId, isOffline = false)
+                            else
+                                AuthState.Unauthenticated
+                            return@LaunchedEffect
+                        }
+                        // Server-side errors (5xx) — fall through to Firebase fallback
+                        Log.w(TAG, "Refresh ApiError ${result.httpStatus}, falling back to Firebase")
+                    }
+                    else -> {
+                        Log.w(TAG, "Refresh unexpected result, falling back to Firebase")
+                    }
                 }
-                Log.d(TAG, "Refresh failed, falling back to Firebase")
             }
 
-            // 3. Firebase fallback → LocalCacheOnly for existing users
+            // 3. Firebase fallback → LocalCacheOnly for anonymous / legacy users
             withContext(Dispatchers.IO) {
                 try {
                     withTimeout(10000L) {
                         val firebaseUserId = repository.initializeUser()
                         if (firebaseUserId.isNotEmpty()) {
-                            Log.d(TAG, "Firebase fallback: firebaseUserId=$firebaseUserId")
-                            authState.value = AuthState.LocalCacheOnly(firebaseUserId)
+                            Log.d(TAG, "Firebase fallback: userId=$firebaseUserId")
+                            authState.value = AuthState.LocalCacheOnly(firebaseUserId, isOffline = false)
                         } else {
                             Log.w(TAG, "Firebase returned empty userId")
                             authState.value = AuthState.Unauthenticated
@@ -283,11 +353,18 @@ fun AppNavigation(initialScreen: String = "emergency") {
 
         authState.value is AuthState.LocalCacheOnly -> {
             val localState = authState.value as AuthState.LocalCacheOnly
+            val bannerMessage = if (localState.isOffline)
+                stringResource(R.string.auth_banner_offline)
+            else
+                stringResource(R.string.auth_banner_session_expired)
             Column(modifier = Modifier.fillMaxSize()) {
-                AuthSessionBanner(onLoginClick = { currentScreen.value = "login" })
+                AuthSessionBanner(
+                    message = bannerMessage,
+                    onLoginClick = { currentScreen.value = "login" }
+                )
                 Box(modifier = Modifier.weight(1f)) {
                     EmergencyScreen(
-                        userId = localState.firebaseUserId,
+                        userId = localState.userId,
                         onLanguageClick = { currentScreen.value = "language" }
                     )
                 }
@@ -323,13 +400,15 @@ fun AppNavigation(initialScreen: String = "emergency") {
                             Log.d(TAG, "Rendering EmergencyScreen")
                             EmergencyScreen(
                                 userId = userId,
-                                onLanguageClick = { currentScreen.value = "language" }
+                                onLanguageClick = { currentScreen.value = "language" },
+                                onMintLink = { emergencyLinkRepository.mintOrEmpty() }
                             )
                         }
                         "qr" -> {
                             Log.d(TAG, "Rendering QRScreen")
                             QRScreen(
                                 userId = userId,
+                                onMintLink = { emergencyLinkRepository.mintOrEmpty() },
                                 onBackClick = { currentScreen.value = "emergency" }
                             )
                         }
@@ -338,7 +417,8 @@ fun AppNavigation(initialScreen: String = "emergency") {
                             EditProfileScreen(
                                 userId = userId,
                                 onBackClick = { currentScreen.value = "emergency" },
-                                onSaveSuccess = { currentScreen.value = "emergency" }
+                                onSaveSuccess = { currentScreen.value = "emergency" },
+                                onLogout = ::performLogout
                             )
                         }
                         "language" -> {

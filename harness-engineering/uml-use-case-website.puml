@@ -1,0 +1,74 @@
+@startuml
+' UML Use-case: Website Helper ID
+left to right direction
+skinparam defaultFontName "DejaVu Sans"
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #475569
+}
+skinparam actor {
+  BorderColor #1F2937
+}
+
+title Website Helper ID - Sơ đồ UML Use-case
+
+actor "Người phản hồi / cứu hộ\n(quét QR hoặc NFC)" as Responder
+actor "Khách truy cập web" as WebVisitor
+actor "Client gọi Gemini proxy" as GeminiClient
+
+actor "Backend HelpID API\nASP.NET Core" as BackendApi <<external>>
+actor "Firebase Auth / Firestore\nlegacy mint" as FirebaseLegacy <<external>>
+actor "Gemini API" as GeminiApi <<external>>
+
+rectangle "Website Helper ID\n(React 19 + Vite 6)" as WebApp {
+  usecase "Xem trang marketing\nsản phẩm / giới thiệu / điều khoản" as UC_ViewMarketing
+  usecase "Mở public emergency profile\n/e/:publicKey" as UC_OpenPublicProfile
+  usecase "Gọi GET /api/v1/public/profile\nqua backend" as UC_WebFetchPublicProfile
+  usecase "Hiển thị lỗi link\nthiếu / hết hạn / revoke" as UC_WebPublicProfileError
+  usecase "Mở deep link về Android app" as UC_OpenDeepLink
+}
+
+rectangle "Vercel Serverless API" as Serverless {
+  usecase "Legacy mint Firebase\nPOST /api/mint" as UC_LegacyMint
+  usecase "Legacy profile Firebase\nGET /api/profile" as UC_LegacyProfile
+  usecase "Proxy Gemini\nPOST /api/gemini" as UC_ProxyGemini
+  usecase "Kiểm tra bearer token\nGemini proxy" as UC_CheckGeminiBearer
+  usecase "Kiểm tra prompt\nvà timeout" as UC_ValidateGeminiPrompt
+}
+
+Responder -- UC_OpenPublicProfile
+Responder -- UC_OpenDeepLink
+WebVisitor -- UC_ViewMarketing
+GeminiClient -- UC_ProxyGemini
+
+UC_OpenPublicProfile ..> UC_WebFetchPublicProfile : <<include>>
+UC_WebPublicProfileError ..> UC_OpenPublicProfile : <<extend>>
+UC_OpenDeepLink ..> UC_OpenPublicProfile : <<extend>>
+UC_WebFetchPublicProfile ..> UC_LegacyProfile : <<extend>>
+UC_ProxyGemini ..> UC_ValidateGeminiPrompt : <<include>>
+UC_CheckGeminiBearer ..> UC_ProxyGemini : <<extend>>
+UC_LegacyMint ..> UC_LegacyProfile : <<extend>>
+
+BackendApi -- UC_WebFetchPublicProfile
+FirebaseLegacy -- UC_LegacyMint
+FirebaseLegacy -- UC_LegacyProfile
+GeminiApi -- UC_ProxyGemini
+
+note right of UC_WebFetchPublicProfile
+  Backend trả whitelist field
+  (không có userId/email/language).
+  Header Cache-Control: no-store.
+end note
+
+note bottom of UC_LegacyMint
+  Legacy Firebase mint vẫn tồn tại
+  cho backward compatibility.
+  Android mới dùng backend mint.
+end note
+@enduml

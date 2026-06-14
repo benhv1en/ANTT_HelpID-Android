@@ -1,5 +1,47 @@
 # Passed Testcases
 
+16/06/2026 02:30:00
+- Mục đích/nội dung testcase: Build debug APK, chạy unit test và lint sau khi audit và sửa frontend Android auth (layout shift từ supportingText, ghost button không disable khi loading).
+- Cách test: Chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`.
+- Expected result: BUILD SUCCESSFUL, 31 unit test pass, lint 0 error.
+- Actual result: `BUILD SUCCESSFUL in 41s` (assembleDebug + lintDebug chung pass); `BUILD SUCCESSFUL in 1s` (testDebugUnitTest, từ cache); XML report: 28/28 `HelpIdApiAuthRepositoryTest` + 3/3 `EmergencyNumberResolverTest` = 31 tests, 0 failures, 0 errors; lintDebug 0 error.
+- Kết luận: PASS.
+
+16/06/2026 01:30:00
+- Mục đích/nội dung testcase: Build debug APK, chạy unit test và lint sau khi chuyển QR/NFC/SOS fallback mint sang backend API (`POST /api/v1/emergency-links/mint`): tạo `HelpIdApiEmergencyLinkRepository` (auto-refresh token khi hết hạn, retry sau 401, trả "" khi offline/lỗi), sửa `QRScreen` nhận `onMintLink: suspend () -> String` thay FirebaseRepository, sửa `EmergencyScreen` nhận `onMintLink` thay 2 chỗ `repository.mintEmergencyLink()`, wire `emergencyLinkRepository` trong `MainActivity`; cũng chạy 30/30 backend test (không sửa backend).
+- Cách test: Chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`; backend test `dotnet test backend/HelpId.Api.Tests/... --no-build -v quiet`.
+- Expected result: BUILD SUCCESSFUL cho cả 3 Gradle task, 31 unit test pass, lint 0 error; backend 30/30 pass.
+- Actual result: `BUILD SUCCESSFUL in 34s` (assembleDebug); `BUILD SUCCESSFUL in 3s` (testDebugUnitTest) 31 tests pass; `BUILD SUCCESSFUL in 18s` (lintDebug) 0 error; backend `Passed! - Failed: 0, Passed: 30, Skipped: 0, Total: 30`.
+- Kết luận: PASS.
+
+15/06/2026 23:30:00
+- Mục đích/nội dung testcase: Build debug APK, chạy 31 unit test và lint sau khi hoàn thiện frontend auth state Android: thêm offline/invalid-token detection khi startup (phân biệt `NetworkError` vs `ApiError` từ refresh), thêm logout button + confirmation dialog trong `EditProfileScreen`, thêm `performLogout()` trong `AppNavigation` (best-effort revoke, `clearTokens()`, kiểm Room cache trước khi quyết định `LocalCacheOnly` vs `Unauthenticated`), phân biệt banner "offline" vs "session expired" trong `LocalCacheOnly` state, không xóa Room database khi logout.
+- Cách test: Chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`; unit test gọi companion object method của `HelpIdApiAuthRepository` và `EmergencyNumberResolver` không cần Context/network; lint kiểm tra toàn bộ source Android.
+- Expected result: BUILD SUCCESSFUL cho cả 3 task, 28/28 `HelpIdApiAuthRepositoryTest` pass, 3/3 `EmergencyNumberResolverTest` pass, lint 0 error.
+- Actual result: `BUILD SUCCESSFUL in 35s` (assembleDebug); `BUILD SUCCESSFUL in 3s` (testDebugUnitTest) với `tests=28 failures=0 errors=0` và `tests=3 failures=0 errors=0`; `BUILD SUCCESSFUL in 29s` (lintDebug) với HTML report, 0 error severity.
+- Kết luận: PASS.
+
+15/06/2026 01:00:00
+- Mục đích/nội dung testcase: Build debug APK, chạy 28 unit test `HelpIdApiAuthRepositoryTest` và lint sau khi sửa bug key `"displayname"` trong `RegisterScreen.kt` (dòng 152: `fieldErrors["displayName"]` → `fieldErrors["displayname"]`) để field error displayName từ backend 422 ValidationProblemDetails được hiển thị đúng trên UI.
+- Cách test: Chạy `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --continue`; test chạy trên companion object method không cần Context/network; lint kiểm tra toàn bộ source.
+- Expected result: BUILD SUCCESSFUL, 28/28 unit test pass, lint pass không có error.
+- Actual result: `BUILD SUCCESSFUL in 43s`; 28/28 `HelpIdApiAuthRepositoryTest` pass, 3/3 `EmergencyNumberResolverTest` pass; lint: `Wrote HTML report`, no errors.
+- Kết luận: PASS.
+
+15/06/2026 00:30:00
+- Mục đích/nội dung testcase: Chạy 28 unit test cho `HelpIdApiAuthRepository` bao gồm: parse response 200/201 login/register/refresh (lấy accessToken, refreshToken, userId, expiry), parse lỗi 401/409/423 → ApiError, parse 422 ValidationProblemDetails của ASP.NET Core với các field errors cho email/password/displayName (chuẩn hóa key về lowercase), parse JSON lỗi và JSON rỗng không crash, parse timestamp ISO-8601 với suffix `Z` và `+00:00` và fractional seconds, parse timestamp null/rỗng/sai format trả fallback, `detectFieldCode` map message → code cho tất cả trường hợp đã biết và fallback `server_error`.
+- Cách test: Chạy `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew :app:testDebugUnitTest`; test gọi trực tiếp companion object method (`parseTokenResponse`, `parseIso8601ToEpochMs`, `detectFieldCode`) không cần Context hoặc network; timestamp test dùng `Calendar` UTC thay vì hard-code giá trị epoch.
+- Expected result: 28/28 test `HelpIdApiAuthRepositoryTest` pass; 3 test `EmergencyNumberResolverTest` pass; 0 failure.
+- Actual result: `BUILD SUCCESSFUL`; XML report: `tests=28 failures=0 errors=0` cho `HelpIdApiAuthRepositoryTest`; `tests=3 failures=0 errors=0` cho `EmergencyNumberResolverTest`.
+- Kết luận: PASS.
+
+15/06/2026 00:30:00
+- Mục đích/nội dung testcase: Build debug APK (`assembleDebug`) sau khi thêm `HelpIdApiAuthRepository`, `HelpIdApiConfig`, `network_security_config.xml`, bật `buildConfig`, cập nhật `AndroidManifest.xml`.
+- Cách test: Chạy `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew :app:assembleDebug`; không log token/password/PII trong source.
+- Expected result: BUILD SUCCESSFUL, 0 compile error.
+- Actual result: `BUILD SUCCESSFUL`; APK sinh tại `app/build/outputs/apk/debug/`.
+- Kết luận: PASS.
+
 14/06/2026 23:30:00
 - Mục đích/nội dung testcase: Chạy toàn bộ 30 test backend gồm profile API (`GET/PUT /api/v1/profile`) và emergency link API (`POST /api/v1/emergency-links/mint`, `GET /api/v1/public/profile`) với JWT auth, ownership policy, validation 422, list replace, public key `HID-*`, public profile JWT, whitelist field, no-store header và SQL injection.
 - Cách test: Chạy lệnh `dotnet test backend/HelpId.Api.Tests/HelpId.Api.Tests.csproj --logger "console;verbosity=normal"`; test dùng SQLite in-memory, `SimpleCurrentUserContext` set userId thủ công, không ghi token/dữ liệu y tế/số điện thoại vào log.

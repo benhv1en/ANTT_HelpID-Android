@@ -114,7 +114,8 @@ data class EmergencyContact(
 @Composable
 fun EmergencyScreen(
     userId: String,
-    onLanguageClick: () -> Unit = {}
+    onLanguageClick: () -> Unit = {},
+    onMintLink: suspend () -> String = { "" }
 ) {
     val context = LocalContext.current
     val repository = remember { FirebaseRepository(context) }
@@ -427,7 +428,7 @@ fun EmergencyScreen(
                 if (failed.isNotEmpty()) {
                     val link = withContext(Dispatchers.IO) {
                         try {
-                            withTimeout(4000L) { repository.mintEmergencyLink() }
+                            withTimeout(4000L) { onMintLink() }
                         } catch (_: Exception) {
                             ""
                         }
@@ -597,7 +598,7 @@ fun EmergencyScreen(
         if (!isNfcActive.value || userId.isEmpty()) return@LaunchedEffect
         try {
             val minted = withContext(Dispatchers.IO) {
-                withTimeout(7000L) { repository.mintEmergencyLink() }
+                withTimeout(7000L) { onMintLink() }
             }
             nfcShareUrl.value = minted
         } catch (_: Exception) {

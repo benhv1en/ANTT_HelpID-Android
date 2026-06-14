@@ -149,7 +149,7 @@ fun RegisterScreen(
                     apiError = mapRegisterApiError(context, result.httpStatus, result.errorCode)
                 }
                 is AuthResult.ValidationError -> {
-                    result.fieldErrors["displayName"]?.let {
+                    result.fieldErrors["displayname"]?.let {
                         displayNameError = context.getString(R.string.auth_error_display_name_too_long)
                     }
                     result.fieldErrors["email"]?.let { emailError = mapRegisterFieldCode(context, it) }
@@ -217,8 +217,14 @@ fun RegisterScreen(
                 onValueChange = { displayName = it; displayNameError = null },
                 label = { Text(stringResource(R.string.auth_field_display_name)) },
                 isError = displayNameError != null,
-                supportingText = displayNameError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                supportingText = {
+                    Text(
+                        text = displayNameError.orEmpty(),
+                        color = MaterialTheme.colorScheme.error.copy(
+                            alpha = if (displayNameError != null) 1f else 0f
+                        ),
+                        fontSize = 12.sp
+                    )
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -233,8 +239,14 @@ fun RegisterScreen(
                 onValueChange = { email = it; emailError = null; apiError = null },
                 label = { Text(stringResource(R.string.auth_field_email)) },
                 isError = emailError != null,
-                supportingText = emailError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                supportingText = {
+                    Text(
+                        text = emailError.orEmpty(),
+                        color = MaterialTheme.colorScheme.error.copy(
+                            alpha = if (emailError != null) 1f else 0f
+                        ),
+                        fontSize = 12.sp
+                    )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -254,8 +266,14 @@ fun RegisterScreen(
                 onValueChange = { password = it; passwordError = null; apiError = null },
                 label = { Text(stringResource(R.string.auth_field_password)) },
                 isError = passwordError != null,
-                supportingText = passwordError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                supportingText = {
+                    Text(
+                        text = passwordError.orEmpty(),
+                        color = MaterialTheme.colorScheme.error.copy(
+                            alpha = if (passwordError != null) 1f else 0f
+                        ),
+                        fontSize = 12.sp
+                    )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -289,8 +307,14 @@ fun RegisterScreen(
                 onValueChange = { confirmPassword = it; confirmPasswordError = null },
                 label = { Text(stringResource(R.string.auth_field_confirm_password)) },
                 isError = confirmPasswordError != null,
-                supportingText = confirmPasswordError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                supportingText = {
+                    Text(
+                        text = confirmPasswordError.orEmpty(),
+                        color = MaterialTheme.colorScheme.error.copy(
+                            alpha = if (confirmPasswordError != null) 1f else 0f
+                        ),
+                        fontSize = 12.sp
+                    )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -340,6 +364,7 @@ fun RegisterScreen(
             GhostButton(
                 text = stringResource(R.string.auth_link_go_to_login),
                 onClick = onGoToLogin,
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             )
         }

@@ -14,12 +14,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material.icons.Icons
@@ -69,7 +71,8 @@ import com.helpid.app.ui.components.SecondaryButton
 fun EditProfileScreen(
     userId: String,
     onBackClick: () -> Unit = {},
-    onSaveSuccess: () -> Unit = {}
+    onSaveSuccess: () -> Unit = {},
+    onLogout: (() -> Unit)? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember { FirebaseRepository(context) }
@@ -78,6 +81,7 @@ fun EditProfileScreen(
     val profile = remember { mutableStateOf<UserProfile?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val isSaving = remember { mutableStateOf(false) }
+    val showLogoutDialog = remember { mutableStateOf(false) }
     
     val name = remember { mutableStateOf("") }
     val bloodGroup = remember { mutableStateOf("") }
@@ -462,6 +466,42 @@ fun EditProfileScreen(
                         .height(40.dp)
                         .align(Alignment.CenterHorizontally),
                     enabled = !isSaving.value
+                )
+
+                if (onLogout != null) {
+                    GhostButton(
+                        text = stringResource(R.string.auth_logout),
+                        onClick = { showLogoutDialog.value = true },
+                        modifier = Modifier
+                            .fillMaxWidth(0.7f)
+                            .height(40.dp)
+                            .align(Alignment.CenterHorizontally),
+                        enabled = !isSaving.value
+                    )
+                }
+            }
+
+            if (showLogoutDialog.value && onLogout != null) {
+                AlertDialog(
+                    onDismissRequest = { showLogoutDialog.value = false },
+                    title = { Text(stringResource(R.string.auth_logout_confirm_title)) },
+                    text = { Text(stringResource(R.string.auth_logout_confirm_body)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showLogoutDialog.value = false
+                            onLogout()
+                        }) {
+                            Text(
+                                text = stringResource(R.string.auth_logout_confirm_yes),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showLogoutDialog.value = false }) {
+                            Text(stringResource(R.string.auth_logout_confirm_no))
+                        }
+                    }
                 )
             }
 

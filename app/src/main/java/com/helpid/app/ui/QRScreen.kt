@@ -43,7 +43,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.shadow
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import com.helpid.app.data.FirebaseRepository
 import com.helpid.app.R
 import com.helpid.app.ui.components.GhostButton
 import com.helpid.app.ui.components.ScreenHeader
@@ -70,11 +69,11 @@ fun generateQRCode(text: String, size: Int = 512): Bitmap {
 @Composable
 fun QRScreen(
     userId: String,
+    onMintLink: suspend () -> String,
     onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
-    val repository = remember { FirebaseRepository(context) }
     val nfcAdapter = remember { NfcAdapter.getDefaultAdapter(context) }
     val isNfcActive = remember { mutableStateOf(false) }
     val qrContentState = remember { mutableStateOf("") }
@@ -120,7 +119,7 @@ fun QRScreen(
         isMinting.value = true
         mintError.value = null
 
-        val minted = repository.mintEmergencyLink()
+        val minted = onMintLink()
         if (minted.isBlank()) {
             mintError.value = context.getString(R.string.qr_mint_error)
             qrContentState.value = ""
@@ -307,6 +306,6 @@ fun QRScreen(
 @Composable
 fun QRScreenPreview() {
     HelpIDTheme {
-        QRScreen(userId = "demo-user-id")
+        QRScreen(userId = "demo-user-id", onMintLink = { "" })
     }
 }

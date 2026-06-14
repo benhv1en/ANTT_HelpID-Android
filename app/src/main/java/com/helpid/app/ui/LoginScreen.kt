@@ -204,8 +204,14 @@ fun LoginScreen(
                 onValueChange = { email = it; emailError = null; apiError = null },
                 label = { Text(stringResource(R.string.auth_field_email)) },
                 isError = emailError != null,
-                supportingText = emailError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                supportingText = {
+                    Text(
+                        text = emailError.orEmpty(),
+                        color = MaterialTheme.colorScheme.error.copy(
+                            alpha = if (emailError != null) 1f else 0f
+                        ),
+                        fontSize = 12.sp
+                    )
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -223,8 +229,14 @@ fun LoginScreen(
                 onValueChange = { password = it; passwordError = null; apiError = null },
                 label = { Text(stringResource(R.string.auth_field_password)) },
                 isError = passwordError != null,
-                supportingText = passwordError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                supportingText = {
+                    Text(
+                        text = passwordError.orEmpty(),
+                        color = MaterialTheme.colorScheme.error.copy(
+                            alpha = if (passwordError != null) 1f else 0f
+                        ),
+                        fontSize = 12.sp
+                    )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -274,6 +286,7 @@ fun LoginScreen(
             GhostButton(
                 text = stringResource(R.string.auth_link_go_to_register),
                 onClick = onGoToRegister,
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             )
         }

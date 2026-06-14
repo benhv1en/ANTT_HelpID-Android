@@ -1,0 +1,144 @@
+@startuml
+' UML Use-case: Ứng dụng Android HelpID
+left to right direction
+skinparam defaultFontName "DejaVu Sans"
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #475569
+}
+skinparam actor {
+  BorderColor #1F2937
+}
+
+title HelpID Android - Sơ đồ UML Use-case
+
+actor "Người dùng HelpID\n(Android)" as User
+actor "Liên hệ khẩn cấp" as EmergencyContact
+actor "Người phản hồi / cứu hộ\n(quét QR hoặc NFC)" as Responder
+
+actor "Backend HelpID API" as BackendApi <<external>>
+actor "Firebase Auth / Firestore\nluồng cũ" as FirebaseLegacy <<external>>
+actor "Dịch vụ vị trí\nGoogle Play Services" as LocationService <<external>>
+actor "Hệ thống SMS / Điện thoại" as Telephony <<external>>
+actor "Danh bạ Android" as ContactsProvider <<external>>
+actor "Thiết bị NFC" as NfcDevice <<external>>
+actor "SQLite Room local" as RoomDb <<external>>
+
+rectangle "Ứng dụng Android HelpID" as AndroidApp {
+  usecase "Đăng ký tài khoản" as UC_AndroidRegister
+  usecase "Đăng nhập" as UC_AndroidLogin
+  usecase "Khôi phục session\nkhi mở app" as UC_AndroidRestoreSession
+  usecase "Refresh access token" as UC_AndroidRefreshToken
+  usecase "Logout và xóa token local" as UC_AndroidLogout
+  usecase "Xem ID / hồ sơ khẩn cấp\noffline-first" as UC_ViewEmergencyId
+  usecase "Xem hồ sơ local cache\nkhi offline hoặc token lỗi" as UC_ViewLocalCache
+  usecase "Chỉnh sửa hồ sơ y tế" as UC_EditProfile
+  usecase "Chọn liên hệ từ danh bạ" as UC_PickContact
+  usecase "Lưu hồ sơ cục bộ\nvào Room" as UC_SaveLocal
+  usecase "Đồng bộ hồ sơ\nqua Firebase (legacy)" as UC_SyncFirebaseProfile
+  usecase "Lưu pending sync\nkhi offline hoặc lỗi" as UC_PendingSync
+  usecase "Đổi ngôn ngữ app" as UC_ChangeLanguage
+  usecase "Gọi số cấp cứu quốc gia" as UC_CallEmergency
+  usecase "Gọi / SMS / sao chép\nliên hệ khẩn cấp" as UC_ContactActions
+  usecase "Gửi SOS" as UC_SendSos
+  usecase "Kiểm tra quyền\nSMS / vị trí / thông báo" as UC_CheckPermissions
+  usecase "Lấy vị trí hiện tại" as UC_GetLocation
+  usecase "Gửi SMS SOS tới liên hệ" as UC_SendSosSms
+  usecase "Tạo link hồ sơ dự phòng\nqua backend mint" as UC_SosFallbackLink
+  usecase "Chia sẻ SOS dự phòng" as UC_ShareSosFallback
+  usecase "Tự động gọi cấp cứu\nsau countdown" as UC_AutoEmergencyCall
+  usecase "Hủy countdown / auto-call" as UC_CancelSosCountdown
+  usecase "Cập nhật vị trí SOS định kỳ" as UC_SosFollowUp
+  usecase "Hiển thị thông báo\nSOS thành công / thất bại" as UC_ShowNotification
+  usecase "Tạo QR hồ sơ khẩn cấp\nqua backend mint" as UC_GenerateQr
+  usecase "Bật NFC Tap-to-Assist\nqua backend mint" as UC_EnableNfc
+  usecase "Gọi POST /emergency-links/mint\n(tự refresh token nếu hết hạn)" as UC_CallBackendMint
+  usecase "Chia sẻ / xuất PDF" as UC_ShareExportProfile
+}
+
+User -- UC_AndroidRegister
+User -- UC_AndroidLogin
+User -- UC_AndroidRestoreSession
+User -- UC_AndroidLogout
+User -- UC_ViewEmergencyId
+User -- UC_EditProfile
+User -- UC_ChangeLanguage
+User -- UC_CallEmergency
+User -- UC_ContactActions
+User -- UC_SendSos
+User -- UC_CancelSosCountdown
+User -- UC_GenerateQr
+User -- UC_EnableNfc
+User -- UC_ShareExportProfile
+
+EmergencyContact -- UC_ContactActions
+EmergencyContact -- UC_SendSosSms
+EmergencyContact -- UC_SosFollowUp
+
+Responder -- UC_GenerateQr
+Responder -- UC_EnableNfc
+
+UC_AndroidRegister ..> UC_AndroidRefreshToken : <<extend>>
+UC_AndroidRestoreSession ..> UC_AndroidRefreshToken : <<include>>
+UC_AndroidLogout ..> BackendApi : <<include>>
+UC_AndroidRegister ..> BackendApi : <<include>>
+UC_AndroidLogin ..> BackendApi : <<include>>
+UC_AndroidRefreshToken ..> BackendApi : <<include>>
+
+UC_ViewEmergencyId ..> UC_ViewLocalCache : <<include>>
+UC_ViewEmergencyId ..> UC_SyncFirebaseProfile : <<extend>>
+UC_ViewLocalCache ..> UC_SaveLocal : <<include>>
+UC_EditProfile ..> UC_SaveLocal : <<include>>
+UC_EditProfile ..> UC_SyncFirebaseProfile : <<include>>
+UC_PickContact ..> UC_EditProfile : <<extend>>
+UC_PendingSync ..> UC_SyncFirebaseProfile : <<extend>>
+
+UC_SendSos ..> UC_CheckPermissions : <<include>>
+UC_SendSos ..> UC_GetLocation : <<include>>
+UC_SendSos ..> UC_SendSosSms : <<include>>
+UC_SendSos ..> UC_SosFollowUp : <<include>>
+UC_SendSos ..> UC_ShowNotification : <<include>>
+UC_SosFallbackLink ..> UC_SendSos : <<extend>>
+UC_ShareSosFallback ..> UC_SendSos : <<extend>>
+UC_AutoEmergencyCall ..> UC_SendSos : <<extend>>
+UC_CancelSosCountdown ..> UC_SendSos : <<extend>>
+
+UC_SosFallbackLink ..> UC_CallBackendMint : <<include>>
+UC_GenerateQr ..> UC_CallBackendMint : <<include>>
+UC_EnableNfc ..> UC_CallBackendMint : <<include>>
+UC_CallBackendMint ..> UC_AndroidRefreshToken : <<include>>
+UC_CallBackendMint ..> BackendApi : <<include>>
+
+BackendApi -- UC_AndroidRegister
+BackendApi -- UC_AndroidLogin
+BackendApi -- UC_AndroidRefreshToken
+FirebaseLegacy -- UC_SyncFirebaseProfile
+LocationService -- UC_GetLocation
+LocationService -- UC_SosFollowUp
+Telephony -- UC_CallEmergency
+Telephony -- UC_ContactActions
+Telephony -- UC_SendSosSms
+Telephony -- UC_AutoEmergencyCall
+Telephony -- UC_SosFollowUp
+ContactsProvider -- UC_PickContact
+NfcDevice -- UC_EnableNfc
+RoomDb -- UC_SaveLocal
+RoomDb -- UC_ViewLocalCache
+
+note right of UC_ViewLocalCache
+  Token lỗi / offline không được chặn
+  hồ sơ đã cache trong tình huống khẩn cấp.
+end note
+
+note bottom of UC_CallBackendMint
+  Nếu offline hoặc backend lỗi, không render
+  URL hỏng và SOS không crash. Chỉ đưa link
+  vào tin nhắn khi backend trả URL hợp lệ.
+end note
+@enduml
