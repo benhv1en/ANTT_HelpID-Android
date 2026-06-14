@@ -18,6 +18,7 @@ Dự án xử lý dữ liệu nhạy cảm: tên, nhóm máu, địa chỉ, dị
 - Nếu sau khi đã có kế hoạch người dùng yêu cầu sửa code/tài liệu/cấu hình, phải tự động đọc lại `harness-engineering/ke-hoach.md` trước khi sửa, rồi thực hiện theo kế hoạch hoặc nói rõ điểm cần điều chỉnh nếu bối cảnh đã thay đổi.
 - Nếu người dùng chỉ yêu cầu lập kế hoạch, không tự ý sửa code/cấu hình ngoài việc ghi kế hoạch và cập nhật tài liệu vận hành nếu được yêu cầu.
 - Sau mỗi prompt yêu cầu sửa đổi code/tài liệu/cấu hình, khi hoàn thành phải cập nhật `CHANGELOG.md` ở cùng cấp với `AGENTS.md`. Entry mới luôn chèn lên đầu file, không append xuống cuối file, theo format ngày giờ bình thường `dd/mm/yyyy hh:mm:ss` trên dòng đầu và dòng tiếp theo là `- nội_dung_sửa_đổi`.
+- Khi bất cứ use-case nào thay đổi, bao gồm actor, luồng người dùng, route web, API, SOS, QR/NFC, public profile, quyền hoặc hành vi chính của app, phải cập nhật và render UML use-case thành 3 sơ đồ riêng theo system boundary, không render chung cả 3 vào một ảnh: `harness-engineering/uml-use-case-android.puml` -> `harness-engineering/uml-use-case-android.png` cho `Ứng dụng Android HelpID`; `harness-engineering/uml-use-case-website.puml` -> `harness-engineering/uml-use-case-website.png` cho `Website Helper ID`; `harness-engineering/uml-use-case-api.puml` -> `harness-engineering/uml-use-case-api.png` cho `Vercel Serverless API`. Trước khi render lại phải xóa các ảnh UML use-case cũ tương ứng để tránh artifact lỗi thời.
 - Không sửa file nhị phân hoặc artifact sinh ra nếu không được yêu cầu: `*.png`, `gradle-wrapper.jar`, `helper-id/package-lock.json` chỉ sửa khi dependency thật sự thay đổi.
 - Không commit secret. Các file/env nhạy cảm gồm `app/google-services.json`, `helper-id/.env*`, Firebase service account, JWT secret, Gemini key.
 - Không ghi log dữ liệu y tế, số điện thoại, vị trí, Firebase ID token, JWT token hoặc public profile token.
@@ -86,6 +87,15 @@ Vercel/API cần env:
 - Thay đổi string/resource: chạy build để phát hiện thiếu string ở locale.
 - Thay đổi web React/API: chạy `cd helper-id && npm run build`; nếu đổi type phức tạp, chạy thêm `npx tsc --noEmit`.
 - Thay đổi Vercel API: kiểm tra method, status code, header `no-store`, input validation, secret handling.
+
+## Ghi log testcase khi kiểm thử
+
+- Khi chạy bất kỳ testcase nào, bao gồm unit test, integration test, build/lint có assertion, hoặc test thủ công, phải ghi kết quả testcase vào file markdown ở cùng cấp với `AGENTS.md`.
+- Tất cả testcase pass ghi vào `passed-testcases.md`; tất cả testcase fail ghi vào `failed-testcases.md`. Nếu file chưa tồn tại thì tạo mới.
+- Mỗi testcase phải có đủ nội dung: `dd/mm/yyyy hh:mm:ss` + mục đích/nội dung testcase + cách test + kết quả testcase khi đối chiếu với expected result. Nêu rõ expected result và actual result; kết luận pass/fail phải khớp với file đang ghi.
+- Nếu một testcase từng fail trong `failed-testcases.md` nhưng lần chạy sau đã pass, phải xóa entry fail tương ứng khỏi `failed-testcases.md` và ghi entry pass mới vào `passed-testcases.md`. Dùng mục đích/nội dung testcase và cách test để xác định testcase tương ứng.
+- Nếu test runner chỉ trả kết quả ở mức command/suite mà không liệt kê từng testcase, ghi command/suite đó như một testcase và nói rõ giới hạn quan sát được từ output trong phần cách test hoặc actual result.
+- Không ghi dữ liệu y tế, số điện thoại, vị trí, Firebase ID token, JWT token, refresh token, password, secret hoặc public profile token vào `passed-testcases.md` hoặc `failed-testcases.md`.
 
 ## Rủi ro đã thấy khi đọc repo
 

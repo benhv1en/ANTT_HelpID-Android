@@ -1,142 +1,388 @@
-# Kế hoạch thêm Tiếng Việt cho màn hình chọn ngôn ngữ và toàn bộ app Android
+# Kế hoạch thêm đăng ký/đăng nhập cho HelpID
 
-Thời điểm lập kế hoạch: 14/06/2026 13:52:15
+Thời điểm lập kế hoạch: 14/06/2026 16:04:39
 
-## Bối cảnh
+## Bối cảnh hiện tại
 
-Người dùng thấy màn hình `Select Language` chưa có Tiếng Việt. Yêu cầu hiện tại chỉ là lập kế hoạch, chưa sửa code.
+Repo hiện chưa có đăng ký/đăng nhập user-facing. Android app chỉ tự động dùng Firebase Auth anonymous trong `FirebaseRepository.initializeUser()`. Khi chưa có user Firebase, app gọi `signInAnonymously()`, lấy `uid`, lưu profile vào Firestore và dùng Firebase ID token để mint public emergency link qua Vercel API.
 
-Hiện trạng đọc từ repo:
+Hiện trạng liên quan database/backend:
 
-- `LanguageManager` chỉ có `en`, `es`, `hi`, `fr`, `de`; chưa có `vi`.
-- App có resource locale `values`, `values-es`, `values-fr`, `values-de`, `values-hi`; chưa có `app/src/main/res/values-vi/strings.xml`.
-- `LanguageSelectionScreen` lấy danh sách từ `LanguageManager.getAvailableLanguages()` và hiển thị `language.displayName` hard-code, chưa dùng các key `language_*` trong resource.
-- `MainActivity.attachBaseContext()` đã gọi `LanguageManager.applySavedLanguage(newBase)`, nên cơ chế đổi locale hiện có thể tái sử dụng.
-- `EmergencyNumberResolver` chưa có country code `VN`. Với `Locale("vi")` không có country, nếu không có SIM/network Việt Nam thì logic hiện tại vẫn có thể fallback sai sang `112` hoặc `911`.
-- Một số màn hình/helper còn text tiếng Anh hard-code: `EmergencyScreen.kt`, `EditProfileScreen.kt`, `MainActivity.kt`, `ShareUtils.kt`, `PDFExporter.kt`, `NotificationHelper.kt`, `BiometricManager.kt`, `SosFollowUpWorker.kt`, `UserProfile.default()`.
+- Android local: Room/SQLite database `helpid_database` để cache hồ sơ offline.
+- Cloud hiện tại: Firestore collections `users/{uid}` và `publicKeys/{publicKey}`.
+- Web/API hiện tại: `helper-id/api/mint.js`, `profile.js`, `gemini.js` chạy kiểu Vercel serverless JavaScript.
+- Chưa có màn hình Login/Register trong Android.
+- Chưa có backend SQL code-first/migration.
 
-## Mục tiêu
+Yêu cầu mới:
 
-- Thêm lựa chọn `Tiếng Việt` vào màn hình chọn ngôn ngữ.
-- Khi chọn `Tiếng Việt` và bấm `APPLY`, toàn bộ UI Android do app sinh ra hiển thị tiếng Việt.
-- Nút gọi cấp cứu chính, auto-call sau SOS và mọi text hiển thị số khẩn cấp dùng số cấp cứu y tế Việt Nam `115`.
-- Các template do app sinh ra như SOS SMS, fallback share, share text, PDF, notification, biometric prompt và lỗi validation dùng tiếng Việt khi locale là `vi-VN`.
-- Không tự dịch dữ liệu người dùng nhập hoặc dữ liệu đã lưu trên Firebase/Room như tên, bệnh nền, dị ứng, địa chỉ, tên liên hệ. Đây là dữ liệu y tế/PII và phải giữ nguyên để tránh làm sai nội dung.
-- Không sửa web/API `helper-id` trong phạm vi này, trừ khi sau đó người dùng yêu cầu cả public emergency page `/e/:publicKey` cũng phải có tiếng Việt.
+- Thêm tính năng đăng ký/đăng nhập cho app hiện tại.
+- Làm cả frontend và backend.
+- Backend phải có thiết kế database chống SQL injection.
+- Quy trình backend phải đi theo 5 bước người dùng đưa ra:
+  1. Viết code mô tả bảng/cột theo code-first.
+  2. Chạy migrate để sinh SQLite database.
+  3. Viết API nối backend với frontend.
+  4. Nối backend với frontend.
+  5. Nếu nối lỗi thì sửa backend hoặc API, coi frontend là đúng sau khi frontend đã theo contract đã thống nhất.
+- Chưa code trong prompt này.
+- Tạo thêm file `.txt` chứa prompt copy-paste cho các bước triển khai sau.
 
-## Quyết định hành vi
+## Quyết định kỹ thuật đề xuất
 
-- Thêm ngôn ngữ `VIETNAMESE` với code `vi` và locale runtime là `vi-VN`.
-- Khi app language là `vi`, số cấp cứu ưu tiên là `115` theo yêu cầu người dùng, kể cả khi máy không detect được country `VN`.
-- Với các ngôn ngữ khác, giữ behavior hiện tại: ưu tiên SIM country, network country, locale country, rồi fallback.
-- Nếu sau này cần an toàn cho người Việt đi nước ngoài, nên tách riêng "ngôn ngữ app" và "quốc gia/số khẩn cấp"; task hiện tại chưa làm phần đó vì người dùng muốn chọn Tiếng Việt thì dùng số Việt Nam.
+### Backend mới
 
-## Phạm vi file dự kiến
+Đề xuất thêm backend mới trong repo, ví dụ `backend/HelpId.Api/`, dùng:
 
-- `app/src/main/java/com/helpid/app/utils/LanguageManager.kt`
-  - Thêm `VIETNAMESE`.
-  - Lưu code `vi`.
-  - Tạo locale `vi-VN` thay vì chỉ `Locale("vi")`.
-  - Cân nhắc đổi enum từ `displayName: String` sang `labelRes: Int` hoặc hàm lấy tên qua resource để màn hình chọn ngôn ngữ không còn hard-code thiếu dấu.
-- `app/src/main/java/com/helpid/app/ui/LanguageSelectionScreen.kt`
-  - Hiển thị tên ngôn ngữ qua `stringResource`, thêm `Tiếng Việt`.
-  - Kiểm tra recreate/apply locale sau khi chọn `Tiếng Việt`.
-- `app/src/main/res/values/strings.xml`
-  - Thêm key `language_vietnamese` và các key còn thiếu cho mọi text hard-code sẽ được đưa vào resource.
-  - Đổi các string số khẩn cấp sang dạng có tham số, ví dụ nhận `%1$s` để render đúng `115`, `112`, `911`.
-- `app/src/main/res/values-vi/strings.xml`
-  - Tạo mới đầy đủ các key hiện có và các key mới bằng tiếng Việt.
-  - Dịch các nhóm: Emergency, Edit Profile, QR/NFC, Share/Export, Language Selection, bottom nav, SOS countdown/auto-call/fallback, validation, notification, biometric, PDF/share template.
-- `app/src/main/res/values-es/strings.xml`, `values-fr/strings.xml`, `values-de/strings.xml`, `values-hi/strings.xml`
-  - Bổ sung các key mới để build không thiếu resource.
-  - Không cần dịch lại toàn bộ nội dung cũ nếu task chỉ thêm Việt, nhưng key mới phải có fallback hợp lệ.
-- `app/src/main/java/com/helpid/app/utils/EmergencyNumberResolver.kt`
-  - Thêm mapping `VN -> 115`.
-  - Thêm logic ưu tiên `LanguageManager.getSelectedLanguage(context) == VIETNAMESE` để trả `115` theo yêu cầu.
-  - Nếu cần test dễ hơn, tách hàm resolve theo country/language thành hàm thuần.
-- `app/src/main/java/com/helpid/app/ui/EmergencyScreen.kt`
-  - Đưa các text hard-code vào resource: nút gọi cấp cứu, countdown gửi SOS, hủy SOS, auto-call, hủy auto-call, fallback share, stop follow-up, toast cảnh báo profile demo, toast một số contact fail, chooser title.
-  - Đổi SMS template sang resource có tham số: tên, nhóm máu, địa chỉ, vị trí, profile link.
-  - Đảm bảo `CALL EMERGENCY - $emergencyNumber` chuyển thành tiếng Việt và hiển thị `GỌI CẤP CỨU - 115` khi locale là `vi-VN`.
-- `app/src/main/java/com/helpid/app/ui/EditProfileScreen.kt`
-  - Đưa validation/supporting text còn hard-code vào resource.
-  - Khi lưu profile, set `language` theo `LanguageManager.getSelectedLanguage(context).code` thay vì hard-code `"en"` nếu field này đang được dùng để phản ánh ngôn ngữ hồ sơ.
-  - Không tự đổi nội dung y tế người dùng đã nhập.
-- `app/src/main/java/com/helpid/app/MainActivity.kt`
-  - Đưa init error UI text và thông báo khởi tạo nếu cần hiển thị cho người dùng vào resource.
-  - Giữ route/state hiện tại, không đưa Navigation Compose vào task này.
-- `app/src/main/java/com/helpid/app/utils/ShareUtils.kt`
-  - Dùng resource string cho chooser title, subject email, tiêu đề và label trong share text.
-  - Share text sinh ra bằng tiếng Việt khi app đang ở `vi-VN`.
-- `app/src/main/java/com/helpid/app/utils/PDFExporter.kt`
-  - Dùng `context.getString(...)` cho tiêu đề/section/label/footer.
-  - Kiểm tra font iTextG hiện dùng Helvetica có hiển thị dấu tiếng Việt ổn không; nếu lỗi dấu, cần chọn font Unicode phù hợp trong phạm vi sửa PDF.
-- `app/src/main/java/com/helpid/app/utils/NotificationHelper.kt`
-  - Đưa channel name/description và full-screen test notification text vào resource.
-  - Lưu ý Android notification channel name/description đã tạo trước đó có thể không đổi ngay trên thiết bị cũ nếu channel id giữ nguyên; cần test cài mới hoặc đổi channel id nếu thực sự cần cập nhật channel đã tồn tại.
-- `app/src/main/java/com/helpid/app/utils/BiometricManager.kt`
-  - Đưa title/subtitle/nút hủy/lỗi xác thực vào resource.
-- `app/src/main/java/com/helpid/app/work/SosFollowUpWorker.kt`
-  - Đưa message follow-up vị trí sang resource hoặc helper format theo locale.
-- `app/src/main/java/com/helpid/app/data/UserProfile.kt`
-  - Cân nhắc Việt hóa default/demo profile khi locale là `vi-VN`, nhưng không nên đổi dữ liệu profile thật đã lưu.
-  - Nếu default profile được tạo trước khi chọn ngôn ngữ, có thể để dữ liệu demo tiếng Anh và chỉ đảm bảo UI/template tiếng Việt; nếu muốn demo cũng tiếng Việt, cần thiết kế default theo locale tại thời điểm tạo user.
+- ASP.NET Core Web API.
+- Entity Framework Core.
+- EF Core SQLite provider.
+- EF Core migrations.
+- JWT access token + refresh token.
+- Password hash bằng cơ chế chuẩn của ASP.NET Core `PasswordHasher<T>` hoặc thư viện Argon2id nếu chấp nhận thêm dependency bảo mật chuyên dụng.
 
-## Các bước thực hiện khi được phép code
+Lý do chọn ASP.NET Core + EF Core + SQLite:
 
-1. Đọc lại `harness-engineering/ke-hoach.md`, `android.md`, `bao-mat-du-lieu.md`, `quy-trinh-code.md` trước khi sửa.
-2. Chạy `git status --short` để tách thay đổi có sẵn của người dùng khỏi thay đổi mới.
-3. Thêm Tiếng Việt vào `LanguageManager` và màn hình chọn ngôn ngữ.
-4. Thêm `values-vi/strings.xml` đầy đủ, đồng thời thêm key mới vào mọi locale hiện có.
-5. Refactor các text hard-code người dùng nhìn thấy sang resource, ưu tiên theo luồng:
-   - Language selection.
-   - Emergency screen và SOS.
-   - Edit profile.
-   - QR/NFC.
-   - Share/PDF/notification/biometric/follow-up.
-6. Sửa `EmergencyNumberResolver` để Tiếng Việt dùng `115` và các label/nút gọi cấp cứu nhận số động.
-7. Kiểm tra không thêm log chứa dữ liệu y tế, số điện thoại, vị trí hoặc token.
-8. Đọc diff toàn bộ phần Android để chắc chắn không đổi schema Room, không đổi secret, không chạm asset nhị phân.
+- Khớp trực tiếp với quy trình code-first -> migration -> SQLite database.
+- EF Core tạo migration và schema SQLite từ class/entity rõ ràng hơn so với viết SQL tay.
+- EF Core LINQ mặc định parameterize query, giảm nguy cơ SQL injection khi không dùng raw SQL string concatenation.
+- ASP.NET Core có middleware auth/JWT, validation, DI, test integration tương đối chuẩn.
+- Dễ tách backend stateful khỏi Vercel serverless hiện tại.
 
-## Kiểm chứng dự kiến
+Lý do không chọn các phương án khác lúc này:
 
-Chạy các lệnh:
+- Không chọn tiếp Firebase Auth/Firestore cho tính năng này vì yêu cầu mới nói rõ backend code-first, migrate ra SQLite database.
+- Không chọn Vercel serverless + SQLite file vì Vercel không phù hợp để ghi database file SQLite bền vững; production cần backend có persistent disk/volume hoặc managed SQLite-compatible service.
+- Không chọn Node/Prisma vì Prisma thiên về schema file hơn code-first class/entity; vẫn tốt nhưng không khớp bằng EF Core với 5 bước người dùng mô tả.
+- Không chọn Drizzle/TypeScript dù code-first khá tốt, vì auth/password/JWT/migration/test bảo mật sẽ phải tự ráp nhiều hơn trong project hiện tại.
+- Không chọn PostgreSQL ngay vì người dùng yêu cầu SQLite và giai đoạn này chưa cần relational database server riêng. Nếu production sau này lớn hơn, PostgreSQL có thể là kế hoạch migration riêng.
+
+### Frontend
+
+Frontend ở đây gồm Android app là chính, và web public emergency profile nếu luồng public link được chuyển sang backend mới.
+
+Android cần thêm:
+
+- Màn hình đăng nhập.
+- Màn hình đăng ký.
+- Auth state khi app khởi động.
+- Token storage trong `EncryptedSharedPreferences` qua `SecurePrefs` hoặc wrapper mới dùng AndroidX Security.
+- Backend API client gắn `Authorization: Bearer <accessToken>`.
+- Cơ chế refresh token khi access token hết hạn.
+- Logout.
+- Luồng offline an toàn: hồ sơ đã cache vẫn đọc được trong tình huống khẩn cấp, nhưng các API remote cần đăng nhập hợp lệ.
+
+Web/API public profile cần quyết định trong lúc triển khai:
+
+- Hoặc để Vercel web gọi backend mới cho `/api/profile`.
+- Hoặc thay route public profile sang backend mới.
+- Không để secret/backend database lộ vào Vite bundle.
+
+## Thiết kế database code-first đề xuất
+
+Database backend SQLite nên tách rõ auth, profile và public link. Không nhét list liên hệ y tế vào một JSON blob nếu cần validate/sort/query; nên normalize các list chính.
+
+### Bảng `Users`
+
+Mục đích: tài khoản đăng nhập.
+
+Cột đề xuất:
+
+- `Id` TEXT primary key, UUID.
+- `Email` TEXT NOT NULL.
+- `NormalizedEmail` TEXT NOT NULL UNIQUE.
+- `PasswordHash` TEXT NOT NULL.
+- `DisplayName` TEXT NULL.
+- `PhoneNumber` TEXT NULL.
+- `IsEmailVerified` INTEGER/BOOLEAN NOT NULL DEFAULT 0.
+- `FailedLoginCount` INTEGER NOT NULL DEFAULT 0.
+- `LockoutUntilUtc` TEXT/INTEGER NULL.
+- `CreatedAtUtc` TEXT/INTEGER NOT NULL.
+- `UpdatedAtUtc` TEXT/INTEGER NOT NULL.
+- `LastLoginAtUtc` TEXT/INTEGER NULL.
+
+Index/constraint:
+
+- Unique index `NormalizedEmail`.
+- Max length validation ở entity/API.
+
+### Bảng `RefreshTokens`
+
+Mục đích: quản lý phiên đăng nhập dài hạn, revoke được.
+
+Cột đề xuất:
+
+- `Id` TEXT primary key, UUID.
+- `UserId` TEXT NOT NULL foreign key -> `Users.Id`.
+- `TokenHash` TEXT NOT NULL UNIQUE.
+- `CreatedAtUtc` TEXT/INTEGER NOT NULL.
+- `ExpiresAtUtc` TEXT/INTEGER NOT NULL.
+- `RevokedAtUtc` TEXT/INTEGER NULL.
+- `ReplacedByTokenId` TEXT NULL.
+- `DeviceName` TEXT NULL.
+- `UserAgentHash` TEXT NULL.
+
+Index/constraint:
+
+- Index `UserId`.
+- Unique index `TokenHash`.
+- Không lưu refresh token plaintext trong database.
+
+### Bảng `UserProfiles`
+
+Mục đích: hồ sơ y tế chính của user.
+
+Cột đề xuất:
+
+- `UserId` TEXT primary key, foreign key -> `Users.Id`.
+- `FullName` TEXT NOT NULL DEFAULT ''.
+- `BloodGroup` TEXT NOT NULL DEFAULT ''.
+- `Address` TEXT NOT NULL DEFAULT ''.
+- `Language` TEXT NOT NULL DEFAULT 'en'.
+- `LastUpdatedUtc` TEXT/INTEGER NOT NULL.
+
+### Bảng `ProfileAllergies`
+
+Cột đề xuất:
+
+- `Id` TEXT primary key, UUID.
+- `UserId` TEXT NOT NULL foreign key -> `Users.Id`.
+- `Value` TEXT NOT NULL.
+- `SortOrder` INTEGER NOT NULL DEFAULT 0.
+
+### Bảng `MedicalNotes`
+
+Cột đề xuất:
+
+- `Id` TEXT primary key, UUID.
+- `UserId` TEXT NOT NULL foreign key -> `Users.Id`.
+- `Value` TEXT NOT NULL.
+- `SortOrder` INTEGER NOT NULL DEFAULT 0.
+
+### Bảng `EmergencyContacts`
+
+Cột đề xuất:
+
+- `Id` TEXT primary key, UUID.
+- `UserId` TEXT NOT NULL foreign key -> `Users.Id`.
+- `Name` TEXT NOT NULL.
+- `Phone` TEXT NOT NULL.
+- `Relationship` TEXT NULL.
+- `SortOrder` INTEGER NOT NULL DEFAULT 0.
+
+### Bảng `PublicProfileLinks`
+
+Mục đích: thay Firestore `publicKeys/{key}`.
+
+Cột đề xuất:
+
+- `PublicKey` TEXT primary key, format `HID-*`.
+- `UserId` TEXT NOT NULL foreign key -> `Users.Id`.
+- `CreatedAtUtc` TEXT/INTEGER NOT NULL.
+- `UpdatedAtUtc` TEXT/INTEGER NOT NULL.
+- `RevokedAtUtc` TEXT/INTEGER NULL.
+
+JWT public profile vẫn nên ngắn hạn, ví dụ 3 giờ như hiện tại.
+
+### Bảng optional `AuditEvents`
+
+Chỉ thêm nếu cần trace bảo mật tối thiểu.
+
+Cột đề xuất:
+
+- `Id` TEXT primary key, UUID.
+- `UserId` TEXT NULL.
+- `EventType` TEXT NOT NULL.
+- `CreatedAtUtc` TEXT/INTEGER NOT NULL.
+- `IpHash` TEXT NULL.
+- `UserAgentHash` TEXT NULL.
+
+Không log dữ liệu y tế, số điện thoại, vị trí, access token, refresh token, JWT public profile hoặc password.
+
+## Thiết kế chống SQL injection
+
+Lưu ý quan trọng: không có “database chống SQL injection” theo nghĩa tự bản thân SQLite chặn được mọi injection. SQL injection được phòng ở tầng backend bằng cách không ghép chuỗi SQL từ input người dùng.
+
+Quy tắc bắt buộc:
+
+- Dùng EF Core LINQ cho query CRUD chính.
+- Cấm string interpolation/concatenation vào raw SQL.
+- Nếu bắt buộc raw SQL, chỉ dùng parameterized API, ví dụ `FromSqlInterpolated` hoặc tham số SQL rõ ràng, không dùng `FromSqlRaw` với input chưa kiểm soát.
+- Validation DTO bằng whitelist, max length, format email/phone/public key.
+- Unique index và foreign key ở database để backend không chỉ dựa vào validation frontend.
+- Không trả raw exception SQL ra client.
+- Viết test injection với input như `' OR 1=1 --`, `x'); DROP TABLE Users; --`, email có quote, public key sai format.
+- Luôn hash password và refresh token; không bao giờ lưu plaintext password/token.
+- Bật SQLite foreign keys trong connection nếu EF Core setup chưa bật.
+
+## API contract đề xuất
+
+Dùng prefix version, ví dụ `/api/v1`.
+
+Auth:
+
+- `POST /api/v1/auth/register`
+  - Body: `email`, `password`, `displayName?`.
+  - Response: `accessToken`, `refreshToken`, `user`.
+- `POST /api/v1/auth/login`
+  - Body: `email`, `password`.
+  - Response: `accessToken`, `refreshToken`, `user`.
+- `POST /api/v1/auth/refresh`
+  - Body: `refreshToken`.
+  - Response: token pair mới.
+- `POST /api/v1/auth/logout`
+  - Auth required hoặc refresh token body; revoke token.
+- `GET /api/v1/auth/me`
+  - Auth required; trả user hiện tại.
+
+Profile:
+
+- `GET /api/v1/profile`
+  - Auth required; trả hồ sơ đầy đủ của user.
+- `PUT /api/v1/profile`
+  - Auth required; cập nhật hồ sơ, allergies, medical notes, emergency contacts.
+
+Public emergency link:
+
+- `POST /api/v1/emergency-links/mint`
+  - Auth required; tạo/tái dùng `HID-*`, ký JWT ngắn hạn, trả URL public.
+- `GET /api/v1/public/profile?key=...&t=...`
+  - Không cần auth user; cần public key và JWT; trả whitelist field y tế cho người quét QR.
+
+Health:
+
+- `GET /health`
+  - Không trả dữ liệu nhạy cảm.
+
+## Quy trình frontend đề xuất
+
+Frontend Android nên làm theo các bước:
+
+1. Thiết kế route/state auth trong `MainActivity` theo pattern navigation thủ công hiện có.
+2. Thêm màn hình Login và Register bằng Jetpack Compose, dùng `stringResource`, cập nhật mọi locale nếu thêm key.
+3. Thêm `AuthTokenStore` dùng secure prefs/encrypted prefs để lưu access token, refresh token, user id, expiry.
+4. Thêm API client cho backend. Để giữ thay đổi hẹp, có thể bắt đầu bằng `HttpURLConnection` giống `mintEmergencyLink`; nếu API phức tạp quá thì tách prompt thêm Retrofit/OkHttp.
+5. Thêm `AuthRepository` gọi register/login/refresh/logout/me.
+6. Startup flow: nếu có token hợp lệ thì vào app; nếu refresh được thì vào app; nếu không thì vào Login/Register. Trường hợp khẩn cấp cần vẫn cho xem profile local đã cache nếu có.
+7. Sau khi auth ổn, chuyển profile sync từ FirebaseRepository sang backend repository hoặc tạo lớp adapter để tránh sửa màn hình quá rộng trong một lượt.
+8. Chuyển QR/NFC/SOS fallback mint link sang backend `/emergency-links/mint`.
+9. Đảm bảo logout không xóa nhầm hồ sơ y tế local nếu cần offline emergency; nếu xóa local phải có xác nhận rõ ràng.
+10. Chạy build/test/lint và kiểm tra thủ công login/register/offline/token hết hạn.
+
+## Quy trình backend theo 5 bước của người dùng
+
+### Bước 1: Viết code-first model
+
+- Tạo project backend.
+- Tạo entity class cho các bảng đã nêu.
+- Tạo `DbContext` và relationship/index/constraint.
+- Tạo DTO request/response.
+- Tạo service password hashing, token service, public key service.
+- Viết test cho validation và mapping nếu có thể.
+
+### Bước 2: Chạy migrate ra SQLite database
+
+- Cấu hình connection string SQLite.
+- Chạy `dotnet ef migrations add InitialAuthSchema`.
+- Chạy `dotnet ef database update`.
+- Kiểm tra file SQLite sinh ra đúng table/index/foreign key.
+- Không commit database production có dữ liệu thật.
+
+### Bước 3: Viết API nối backend với frontend
+
+- Implement auth endpoints.
+- Implement profile endpoints.
+- Implement emergency link/public profile endpoints.
+- Add JWT middleware.
+- Add CORS đúng domain nếu web gọi backend.
+- Add request validation, status code rõ ràng, no-store cho endpoint nhạy cảm.
+- Add tests chống SQL injection và auth flow.
+
+### Bước 4: Nối backend với frontend
+
+- Android gọi register/login/refresh/logout/me.
+- Android lưu token bảo mật.
+- Android attach Bearer token cho profile/mint link.
+- Android chuyển profile sync và QR/SOS fallback sang backend mới.
+- Web public emergency page gọi endpoint public profile mới hoặc Vercel API proxy sang backend.
+
+### Bước 5: Nếu nối lỗi thì sửa backend/API
+
+- Sau khi frontend đã theo contract đã thống nhất, coi frontend là đúng trong vòng fix integration.
+- Nếu lỗi do field name/status code/shape response/header/token refresh, sửa backend hoặc API adapter.
+- Chỉ sửa frontend nếu phát hiện frontend chưa làm đúng contract đã chốt, có crash UI, hoặc có lỗi bảo mật client-side rõ ràng; khi đó phải nói rõ vì sao ngoại lệ.
+
+## Tác động tới Firebase hiện tại
+
+Không nên xóa Firebase ngay trong prompt đầu tiên. Nên triển khai theo hướng an toàn:
+
+1. Thêm backend auth + SQLite song song.
+2. Android dùng backend auth cho tài khoản mới.
+3. Chuyển profile CRUD và mint public link sang backend mới.
+4. Khi luồng mới ổn, tạo task riêng để gỡ Firebase Auth/Firestore hoặc viết migration dữ liệu nếu cần giữ user cũ.
+
+Lý do: xóa Firebase ngay sẽ chạm vào nhiều luồng SOS/QR/public profile cùng lúc, rủi ro cao.
+
+## Kiểm chứng bắt buộc khi triển khai
+
+Backend:
+
+```bash
+dotnet build backend/HelpId.Api/HelpId.Api.csproj
+dotnet test backend/HelpId.Api.Tests/HelpId.Api.Tests.csproj
+dotnet ef migrations list --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj
+dotnet ef database update --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj
+```
+
+Android:
 
 ```bash
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
-git diff --check
-```
-
-Nếu chỉ sửa resource/UI nhiều và môi trường cho phép, chạy thêm:
-
-```bash
 ./gradlew :app:lintDebug
 ```
 
-Kiểm tra thủ công trên emulator/device:
+Web nếu sửa `helper-id`:
 
-- Mở `Select Language`, thấy option `Tiếng Việt`.
-- Chọn `Tiếng Việt`, bấm apply, app quay về màn hình ID và các label chính là tiếng Việt.
-- Bottom nav, QR, Edit Profile, toast/notification, share/PDF template không còn tiếng Anh do app sinh ra.
-- Nút gọi cấp cứu hiển thị `115` và dial intent là `tel:115`.
-- Auto-call sau SOS dùng `115`.
-- SOS countdown/cancel/fallback text là tiếng Việt.
-- Offline mode/online sync vẫn hiển thị đúng.
-- Không gửi SOS thật trong test thủ công nếu không có môi trường test an toàn.
+```bash
+cd helper-id
+npm run build
+npx tsc --noEmit
+```
 
-## Rủi ro và điểm cần chú ý
+Toàn repo:
 
-- Số cấp cứu là luồng an toàn cao. Việc buộc Tiếng Việt dùng `115` đúng theo yêu cầu hiện tại, nhưng có thể không phù hợp nếu người dùng đang ở nước ngoài.
-- Android notification channel đã tạo không tự đổi tên trên thiết bị đã cài app trước đó.
-- PDF tiếng Việt có dấu có thể cần font Unicode; nếu Helvetica lỗi glyph thì cần thêm xử lý font nhưng không thêm asset/font lớn nếu chưa cần.
-- Các dữ liệu profile đã lưu bằng tiếng Anh sẽ vẫn là tiếng Anh vì đó là dữ liệu người dùng/Firebase, không phải UI string.
-- Nếu web public profile cũng phải tiếng Việt, cần task riêng cho `helper-id/components/EmergencyProfilePage.tsx` và API/profile rendering.
+```bash
+git diff --check
+```
 
-## Ngoài phạm vi trong bước kế hoạch này
+Manual test:
 
-- Không sửa code Kotlin/resource ngay trong prompt này.
-- Không sửa web/API.
-- Không đổi Room schema hoặc migration.
-- Không thêm dependency.
-- Không sửa asset PNG/JAR/package-lock.
+- Register account mới.
+- Login đúng password.
+- Login sai password không lộ thông tin nhạy cảm.
+- Refresh token hoạt động.
+- Logout revoke refresh token.
+- App restart vẫn giữ session nếu token hợp lệ.
+- Token hết hạn thì refresh hoặc quay về login.
+- Profile vẫn đọc được offline từ Room khi đã cache.
+- QR/public profile vẫn chỉ trả whitelist field.
+- Input SQL injection không bypass login, không phá database.
+
+## Tài liệu/UML cần cập nhật khi triển khai thật
+
+Vì tính năng đăng ký/đăng nhập làm thay đổi use-case, khi bắt đầu code phải cập nhật:
+
+- `harness-engineering/uml-use-case.puml`.
+- Xóa ảnh cũ `harness-engineering/uml-use-case.png`.
+- Render lại ảnh UML mới.
+- Cập nhật `CHANGELOG.md` sau mỗi prompt có sửa code/tài liệu/cấu hình.
+
+## Ngoài phạm vi của prompt kế hoạch này
+
+- Chưa tạo project backend.
+- Chưa sửa Android UI.
+- Chưa sửa Vercel API/web.
+- Chưa chạy migration.
+- Chưa thay database thật.
+- Chưa xóa Firebase.

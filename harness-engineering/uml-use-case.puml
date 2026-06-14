@@ -1,0 +1,160 @@
+@startuml
+' UML Use-case Diagram for HelpID Android, website and serverless API.
+left to right direction
+skinparam defaultFontName "DejaVu Sans"
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #475569
+}
+skinparam actor {
+  BorderColor #1F2937
+}
+
+title HelpID - Sơ đồ UML Use-case
+
+actor "Người dùng HelpID\n(Android)" as User
+actor "Liên hệ khẩn cấp" as EmergencyContact
+actor "Người phản hồi / cứu hộ\n(quét QR hoặc NFC)" as Responder
+actor "Khách truy cập web" as WebVisitor
+actor "Client gọi Gemini proxy" as GeminiClient
+
+actor "Firebase Auth" as FirebaseAuth <<external>>
+actor "Firestore" as Firestore <<external>>
+actor "Dịch vụ vị trí\nGoogle Play Services" as LocationService <<external>>
+actor "Hệ thống SMS / Điện thoại" as Telephony <<external>>
+actor "Danh bạ Android" as ContactsProvider <<external>>
+actor "Thiết bị NFC" as NfcDevice <<external>>
+actor "Gemini API" as GeminiApi <<external>>
+
+rectangle "Ứng dụng Android HelpID" as AndroidApp {
+  usecase "Khởi tạo người dùng\nvà đăng nhập ẩn danh" as UC_Init
+  usecase "Xem ID / hồ sơ khẩn cấp\noffline-first" as UC_ViewEmergencyId
+  usecase "Chỉnh sửa hồ sơ y tế" as UC_EditProfile
+  usecase "Chọn liên hệ từ danh bạ" as UC_PickContact
+  usecase "Lưu hồ sơ cục bộ" as UC_SaveLocal
+  usecase "Đồng bộ hồ sơ lên Firestore" as UC_SyncProfile
+  usecase "Lưu pending sync\nkhi offline hoặc lỗi" as UC_PendingSync
+  usecase "Đổi ngôn ngữ app" as UC_ChangeLanguage
+  usecase "Gọi số cấp cứu quốc gia" as UC_CallEmergency
+  usecase "Gọi / SMS / sao chép\nliên hệ khẩn cấp" as UC_ContactActions
+  usecase "Gửi SOS" as UC_SendSos
+  usecase "Kiểm tra quyền\nSMS / vị trí / thông báo" as UC_CheckPermissions
+  usecase "Lấy vị trí hiện tại" as UC_GetLocation
+  usecase "Gửi SMS SOS\ntới liên hệ" as UC_SendSosSms
+  usecase "Tạo link hồ sơ\ndự phòng cho SOS" as UC_SosFallbackLink
+  usecase "Chia sẻ SOS dự phòng" as UC_ShareSosFallback
+  usecase "Tự động gọi cấp cứu\nsau countdown" as UC_AutoEmergencyCall
+  usecase "Hủy countdown / auto-call" as UC_CancelSosCountdown
+  usecase "Cập nhật vị trí SOS định kỳ" as UC_SosFollowUp
+  usecase "Hiển thị thông báo\nSOS thành công / thất bại" as UC_ShowNotification
+  usecase "Tạo QR hồ sơ khẩn cấp" as UC_GenerateQr
+  usecase "Bật NFC Tap-to-Assist" as UC_EnableNfc
+  usecase "Chia sẻ / xuất PDF\nthông tin khẩn cấp" as UC_ShareExportProfile
+}
+
+rectangle "Website Helper ID" as WebApp {
+  usecase "Xem trang marketing\nsản phẩm / giới thiệu / điều khoản" as UC_ViewMarketing
+  usecase "Mở public emergency profile\n/e/:publicKey" as UC_OpenPublicProfile
+  usecase "Mở deep link về Android app" as UC_OpenDeepLink
+}
+
+rectangle "Vercel Serverless API" as Api {
+  usecase "Mint public profile link\nPOST /api/mint" as UC_MintLink
+  usecase "Xác thực Firebase ID token" as UC_VerifyFirebaseToken
+  usecase "Tạo hoặc tái sử dụng\npublic key HID-*" as UC_EnsurePublicKey
+  usecase "Ký JWT profile 3 giờ" as UC_SignProfileJwt
+  usecase "Lấy public profile\nGET /api/profile" as UC_GetPublicProfile
+  usecase "Xác thực JWT\nvà public key" as UC_VerifyProfileJwt
+  usecase "Sanitize whitelist\nfield hồ sơ" as UC_SanitizeProfile
+  usecase "Proxy Gemini\nPOST /api/gemini" as UC_ProxyGemini
+  usecase "Kiểm tra bearer token\nGemini proxy" as UC_CheckGeminiBearer
+  usecase "Kiểm tra prompt\nvà timeout" as UC_ValidateGeminiPrompt
+}
+
+User -- UC_Init
+User -- UC_ViewEmergencyId
+User -- UC_EditProfile
+User -- UC_ChangeLanguage
+User -- UC_CallEmergency
+User -- UC_ContactActions
+User -- UC_SendSos
+User -- UC_CancelSosCountdown
+User -- UC_GenerateQr
+User -- UC_EnableNfc
+User -- UC_ShareExportProfile
+
+EmergencyContact -- UC_ContactActions
+EmergencyContact -- UC_SendSosSms
+EmergencyContact -- UC_SosFollowUp
+
+Responder -- UC_OpenPublicProfile
+Responder -- UC_OpenDeepLink
+WebVisitor -- UC_ViewMarketing
+GeminiClient -- UC_ProxyGemini
+
+UC_Init ..> UC_SaveLocal : <<include>>
+UC_Init ..> UC_SyncProfile : <<include>>
+UC_ViewEmergencyId ..> UC_SaveLocal : <<include>>
+UC_ViewEmergencyId ..> UC_SyncProfile : <<include>>
+UC_EditProfile ..> UC_SaveLocal : <<include>>
+UC_EditProfile ..> UC_SyncProfile : <<include>>
+UC_PickContact ..> UC_EditProfile : <<extend>>
+UC_PendingSync ..> UC_SyncProfile : <<extend>>
+
+UC_SendSos ..> UC_CheckPermissions : <<include>>
+UC_SendSos ..> UC_GetLocation : <<include>>
+UC_SendSos ..> UC_SendSosSms : <<include>>
+UC_SendSos ..> UC_SosFollowUp : <<include>>
+UC_SendSos ..> UC_ShowNotification : <<include>>
+UC_SosFallbackLink ..> UC_SendSos : <<extend>>
+UC_ShareSosFallback ..> UC_SendSos : <<extend>>
+UC_AutoEmergencyCall ..> UC_SendSos : <<extend>>
+UC_CancelSosCountdown ..> UC_SendSos : <<extend>>
+
+UC_SosFallbackLink ..> UC_MintLink : <<include>>
+UC_GenerateQr ..> UC_MintLink : <<include>>
+UC_EnableNfc ..> UC_MintLink : <<include>>
+
+UC_OpenPublicProfile ..> UC_GetPublicProfile : <<include>>
+UC_OpenDeepLink ..> UC_OpenPublicProfile : <<extend>>
+
+UC_MintLink ..> UC_VerifyFirebaseToken : <<include>>
+UC_MintLink ..> UC_EnsurePublicKey : <<include>>
+UC_MintLink ..> UC_SignProfileJwt : <<include>>
+UC_GetPublicProfile ..> UC_VerifyProfileJwt : <<include>>
+UC_GetPublicProfile ..> UC_SanitizeProfile : <<include>>
+UC_ProxyGemini ..> UC_ValidateGeminiPrompt : <<include>>
+UC_CheckGeminiBearer ..> UC_ProxyGemini : <<extend>>
+
+FirebaseAuth -- UC_Init
+FirebaseAuth -- UC_VerifyFirebaseToken
+Firestore -- UC_SyncProfile
+Firestore -- UC_EnsurePublicKey
+Firestore -- UC_GetPublicProfile
+LocationService -- UC_GetLocation
+LocationService -- UC_SosFollowUp
+Telephony -- UC_CallEmergency
+Telephony -- UC_ContactActions
+Telephony -- UC_SendSosSms
+Telephony -- UC_AutoEmergencyCall
+Telephony -- UC_SosFollowUp
+ContactsProvider -- UC_PickContact
+NfcDevice -- UC_EnableNfc
+GeminiApi -- UC_ProxyGemini
+
+note right of UC_CallEmergency
+  Khi ngôn ngữ là tiếng Việt,
+  app dùng số cấp cứu Việt Nam 115.
+end note
+
+note bottom of Api
+  API không trả secret; public profile chỉ trả
+  các field đã được whitelist và sanitize.
+end note
+@enduml
