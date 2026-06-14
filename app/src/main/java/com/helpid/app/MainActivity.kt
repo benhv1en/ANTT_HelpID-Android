@@ -129,7 +129,7 @@ private fun InitSkeleton(errorText: String?) {
         if (errorText != null) {
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Error: $errorText",
+                text = stringResource(R.string.error_message, errorText),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.error
             )
@@ -164,20 +164,20 @@ fun AppNavigation(initialScreen: String = "emergency") {
                             isInitialized.value = true
                         } else {
                             Log.w(TAG, "userId is empty")
-                            initError.value = "Failed to initialize user"
+                            initError.value = context.getString(R.string.init_error_failed_user)
                         }
                     }
                 } catch (e: TimeoutCancellationException) {
                     Log.w(TAG, "Firebase initialization timed out after 10 seconds")
-                    initError.value = "Initialization timeout"
+                    initError.value = context.getString(R.string.init_error_timeout)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error during Firebase init: ${e.message}", e)
-                    initError.value = e.message ?: "Unknown error"
+                    initError.value = e.localizedMessage ?: context.getString(R.string.init_error_unknown)
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception in LaunchedEffect: ${e.message}", e)
-            initError.value = e.message ?: "Unknown error"
+            initError.value = e.localizedMessage ?: context.getString(R.string.init_error_unknown)
         }
     }
 

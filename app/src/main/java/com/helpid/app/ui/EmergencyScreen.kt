@@ -80,6 +80,7 @@ import com.helpid.app.data.FirebaseRepository
 import com.helpid.app.data.UserProfile
 import com.helpid.app.ui.theme.HelpIDTheme
 import com.helpid.app.utils.EmergencyNumberResolver
+import com.helpid.app.utils.LanguageManager
 import com.helpid.app.utils.NotificationHelper
 import com.helpid.app.work.SosFollowUpWorker
 import com.google.android.gms.location.LocationServices
@@ -123,8 +124,9 @@ fun EmergencyScreen(
     val activity = context as? Activity
     val nfcAdapter = remember { NfcAdapter.getDefaultAdapter(context) }
     val isNfcActive = remember { mutableStateOf(false) }
-    
-    val userProfile = remember { mutableStateOf(UserProfile.default(userId)) }
+    val selectedLanguageCode = remember { LanguageManager.getSelectedLanguage(context).code }
+
+    val userProfile = remember { mutableStateOf(UserProfile.default(userId, selectedLanguageCode)) }
     val isLoading = remember { mutableStateOf(true) }
     val isSendingSos = remember { mutableStateOf(false) }
     val sosCountdown = remember { mutableStateOf(0) }
@@ -216,10 +218,14 @@ fun EmergencyScreen(
         val validContacts = profile.emergencyContacts.filter { it.phone.isNotBlank() && it.name.isNotBlank() }
         if (!hasName || !hasBloodGroup || validContacts.isEmpty()) return false
 
-        val defaults = UserProfile.default(profile.userId)
-        val unchangedDefaults = profile.name.trim().equals(defaults.name, ignoreCase = true) &&
-            profile.bloodGroup.trim().equals(defaults.bloodGroup, ignoreCase = true) &&
-            profile.emergencyContacts == defaults.emergencyContacts
+        val unchangedDefaults = listOf(
+            UserProfile.default(profile.userId),
+            UserProfile.default(profile.userId, "vi")
+        ).any { defaults ->
+            profile.name.trim().equals(defaults.name, ignoreCase = true) &&
+                profile.bloodGroup.trim().equals(defaults.bloodGroup, ignoreCase = true) &&
+                profile.emergencyContacts == defaults.emergencyContacts
+        }
         return !unchangedDefaults
     }
 
@@ -227,7 +233,8 @@ fun EmergencyScreen(
         val text = buildString {
             append(message)
             if (failed.isNotEmpty()) {
-                append("\n\nFailed contacts:")
+                append("\n\n")
+                append(context.getString(R.string.sos_failed_contacts_header))
                 failed.forEach { append("\n- ${it.name}: ${it.phoneNumber}") }
             }
         }
@@ -236,7 +243,9 @@ fun EmergencyScreen(
             putExtra(Intent.EXTRA_TEXT, text)
         }
         try {
-            context.startActivity(Intent.createChooser(shareIntent, "Share SOS via another app"))
+            context.startActivity(
+                Intent.createChooser(shareIntent, context.getString(R.string.share_sos_chooser))
+            )
         } catch (_: Exception) {
         }
     }
@@ -245,7 +254,7 @@ fun EmergencyScreen(
         WorkManager.getInstance(context).cancelUniqueWork(SosFollowUpWorker.WORK_NAME)
         followUpActive.value = false
         if (showToast) {
-            Toast.makeText(context, "Live SOS follow-ups stopped.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_live_followups_stopped), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -254,7 +263,7 @@ fun EmergencyScreen(
         escalationCountdownJob.value = null
         escalationCountdown.value = 0
         if (showToast) {
-            Toast.makeText(context, "Auto emergency call canceled.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_auto_call_canceled), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -330,7 +339,7 @@ fun EmergencyScreen(
                 if (!isTestMode && !isProfileReadyForSos(profile)) {
                     Toast.makeText(
                         context,
-                        "Complete your profile and real emergency contacts before SOS.",
+                        context.getString(R.string.toast_complete_profile_before_sos),
                         Toast.LENGTH_LONG
                     ).show()
                     notificationHelper.showSosFailed()
@@ -365,15 +374,31 @@ fun EmergencyScreen(
                 }
 
                 val msg = buildString {
-                    append(if (isTestMode) "TEST SOS: Please ignore." else "SOS! I need help.")
-                    if (profile.name.isNotBlank()) append("\nName: ${profile.name}")
-                    if (profile.bloodGroup.isNotBlank()) append("\nBlood: ${profile.bloodGroup}")
-                    if (profile.address.isNotBlank()) append("\nAddress: ${profile.address}")
-                    if (mapsLink.isNotBlank()) append("\nLocation: $mapsLink")
+                    append(
+                        context.getString(
+                            if (isTestMode) R.string.sos_sms_test_intro else R.string.sos_sms_intro
+                        )
+                    )
+                    if (profile.name.isNotBlank()) {
+                        append("\n")
+                        append(context.getString(R.string.sos_sms_name, profile.name))
+                    }
+                    if (profile.bloodGroup.isNotBlank()) {
+                        append("\n")
+                        append(context.getString(R.string.sos_sms_blood, profile.bloodGroup))
+                    }
+                    if (profile.address.isNotBlank()) {
+                        append("\n")
+                        append(context.getString(R.string.sos_sms_address, profile.address))
+                    }
+                    if (mapsLink.isNotBlank()) {
+                        append("\n")
+                        append(context.getString(R.string.sos_sms_location, mapsLink))
+                    }
                 }
 
                 if (isTestMode) {
-                    Toast.makeText(context, "Test SOS ready: permissions and message are valid.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_test_sos_ready), Toast.LENGTH_SHORT).show()
                     notificationHelper.showSosDelivered()
                     return@launch
                 }
@@ -410,7 +435,8 @@ fun EmergencyScreen(
                     fallbackSosMessage.value = buildString {
                         append(msg)
                         if (link.isNotBlank()) {
-                            append("\nProfile Link: $link")
+                            append("\n")
+                            append(context.getString(R.string.sos_sms_profile_link, link))
                         }
                     }
                     failedSosContacts.value = failed.toList()
@@ -424,7 +450,7 @@ fun EmergencyScreen(
                     if (failed.isNotEmpty()) {
                         Toast.makeText(
                             context,
-                            "Some contacts failed. Use fallback share below.",
+                            context.getString(R.string.toast_some_contacts_failed),
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -534,13 +560,13 @@ fun EmergencyScreen(
                     } catch (e: Exception) {
                         android.util.Log.e("EmergencyScreen", "Error loading profile: ${e.message}", e)
                         if (!hasCached) {
-                            userProfile.value = UserProfile.default(userId)
+                            userProfile.value = UserProfile.default(userId, selectedLanguageCode)
                         }
                     }
                 }
             } else {
                 android.util.Log.d("EmergencyScreen", "UserId is empty, using default")
-                userProfile.value = UserProfile.default("")
+                userProfile.value = UserProfile.default("", selectedLanguageCode)
             }
         } catch (e: Exception) {
             android.util.Log.e("EmergencyScreen", "Exception in LaunchedEffect: ${e.message}", e)
@@ -598,7 +624,7 @@ fun EmergencyScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Error loading profile. Using demo data.", fontSize = 14.sp, color = Color(0xFFD32F2F))
+            Text(stringResource(R.string.error_loading_profile_demo), fontSize = 14.sp, color = Color(0xFFD32F2F))
         }
         return
     }
@@ -1026,7 +1052,7 @@ fun EmergencyScreen(
                 )
             ) {
                 Text(
-                    text = "CALL EMERGENCY - $emergencyNumber",
+                    text = stringResource(R.string.call_emergency, emergencyNumber),
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
                     letterSpacing = 0.5.sp
@@ -1070,7 +1096,7 @@ fun EmergencyScreen(
 
             if (sosCountdown.value > 0) {
                 Text(
-                    text = "SOS sending in ${sosCountdown.value}s",
+                    text = stringResource(R.string.sos_countdown, sosCountdown.value),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1085,7 +1111,7 @@ fun EmergencyScreen(
                     )
                 ) {
                     Text(
-                        text = "Cancel SOS",
+                        text = stringResource(R.string.cancel_sos),
                         fontWeight = FontWeight.Medium,
                         fontSize = 13.sp
                     )
@@ -1094,7 +1120,7 @@ fun EmergencyScreen(
 
             if (escalationCountdown.value > 0) {
                 Text(
-                    text = "Auto-calling $emergencyNumber in ${escalationCountdown.value}s",
+                    text = stringResource(R.string.auto_call_countdown, emergencyNumber, escalationCountdown.value),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1109,7 +1135,7 @@ fun EmergencyScreen(
                     )
                 ) {
                     Text(
-                        text = "Cancel Auto Call",
+                        text = stringResource(R.string.cancel_auto_call),
                         fontWeight = FontWeight.Medium,
                         fontSize = 13.sp
                     )
@@ -1133,7 +1159,7 @@ fun EmergencyScreen(
                     )
                 ) {
                     Text(
-                        text = "Fallback Share SOS",
+                        text = stringResource(R.string.fallback_share_sos),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     )
@@ -1152,7 +1178,7 @@ fun EmergencyScreen(
                     )
                 ) {
                     Text(
-                        text = "Stop Live Location Follow-ups",
+                        text = stringResource(R.string.stop_live_followups),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     )

@@ -38,21 +38,42 @@ data class UserProfile(
 
     companion object {
         // Default profile for new users
-        fun default(userId: String = ""): UserProfile = UserProfile(
-            userId = userId,
-            name = "John Doe",
-            bloodGroup = "O+",
-            address = "",
-            allergies = emptyList(),
-            medicalNotes = listOf(
-                "Diabetic",
-                "High Blood Pressure"
-            ),
-            emergencyContacts = listOf(
-                EmergencyContactData("Father", "+91 98765 43210"),
-                EmergencyContactData("Mother", "+91 87654 32109")
-            ),
-            language = "en"
-        )
+        fun default(userId: String = "", language: String = "en"): UserProfile {
+            if (language == "vi") {
+                return UserProfile(
+                    userId = userId,
+                    name = "Nguyễn Văn A",
+                    bloodGroup = "O+",
+                    address = "",
+                    allergies = emptyList(),
+                    medicalNotes = listOf(
+                        "Tiểu đường",
+                        "Cao huyết áp"
+                    ),
+                    emergencyContacts = listOf(
+                        EmergencyContactData("Cha", "+84 000 000 001"),
+                        EmergencyContactData("Mẹ", "+84 000 000 002")
+                    ),
+                    language = language
+                )
+            }
+
+            return UserProfile(
+                userId = userId,
+                name = "John Doe",
+                bloodGroup = "O+",
+                address = "",
+                allergies = emptyList(),
+                medicalNotes = listOf(
+                    "Diabetic",
+                    "High Blood Pressure"
+                ),
+                emergencyContacts = listOf(
+                    EmergencyContactData("Father", "+91 98765 43210"),
+                    EmergencyContactData("Mother", "+91 87654 32109")
+                ),
+                language = language
+            )
+        }
     }
 }

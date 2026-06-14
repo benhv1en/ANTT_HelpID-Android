@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import com.helpid.app.data.local.AppDatabase
 import com.helpid.app.data.local.LocalEmergencyContact
 import com.helpid.app.data.local.LocalUserProfile
+import com.helpid.app.utils.LanguageManager
 import com.helpid.app.utils.SecurePrefs
 import com.helpid.app.utils.SensitiveDataCipher
 import java.net.HttpURLConnection
@@ -21,6 +22,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 class FirebaseRepository(context: Context? = null) {
+    private val appContext = context?.applicationContext
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     private val localDb = context?.let { AppDatabase.getDatabase(it) }
@@ -49,6 +51,11 @@ class FirebaseRepository(context: Context? = null) {
         val token: String? = null,
         val url: String? = null
     )
+
+    private fun defaultProfile(userId: String): UserProfile {
+        val language = appContext?.let { LanguageManager.getSelectedLanguage(it).code } ?: "en"
+        return UserProfile.default(userId, language)
+    }
 
     private fun migrateLegacyPrefsIfNeeded() {
         val secure = sharedPrefs ?: return
@@ -156,8 +163,8 @@ class FirebaseRepository(context: Context? = null) {
                 
                 if (!doc.exists()) {
                     // Create default profile for new user
-                    val defaultProfile = UserProfile.default(userId)
-                    firestore.collection("users").document(userId).set(defaultProfile.toMap()).await()
+                    val defaultUserProfile = defaultProfile(userId)
+                    firestore.collection("users").document(userId).set(defaultUserProfile.toMap()).await()
                     Log.d("FirebaseRepository", "Created default profile")
                 }
             } catch (firebaseError: Exception) {
@@ -270,10 +277,10 @@ class FirebaseRepository(context: Context? = null) {
         // 2. Try to fetch from Firebase
         return try {
             val remoteProfile = fetchRemoteProfile(userId)
-            remoteProfile ?: cachedProfile ?: UserProfile.default(userId)
+            remoteProfile ?: cachedProfile ?: defaultProfile(userId)
         } catch (e: Exception) {
             Log.e("FirebaseRepository", "Error getting profile: ${e.message}", e)
-            cachedProfile ?: UserProfile.default(userId)
+            cachedProfile ?: defaultProfile(userId)
         }
     }
 

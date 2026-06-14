@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">HelpID</string>
-    
-    <!-- Emergency Screen -->
     <string name="emergency_id">आपातकालीन आईडी</string>
     <string name="for_medical_emergencies">चिकित्सा आपातकाल में उपयोग के लिए</string>
     <string name="full_name">पूरा नाम</string>
@@ -12,7 +10,7 @@
     <string name="medical_conditions">अतिरिक्त चिकित्सा जानकारी</string>
     <string name="updated">अपडेट किया गया: %s</string>
     <string name="emergency_contacts">आपातकालीन संपर्क</string>
-    <string name="call_emergency">आपातकाल को कॉल करें • 112</string>
+    <string name="call_emergency">आपातकाल को कॉल करें - %1$s</string>
     <string name="show_qr_code">QR कोड दिखाएं</string>
     <string name="edit">संपादित करें</string>
     <string name="sos_button">SOS</string>
@@ -27,18 +25,54 @@
     <string name="toast_sos_triggered">SOS सक्रिय</string>
     <string name="toast_sos_no_contacts">कम से कम एक आपातकालीन संपर्क जोड़ें</string>
     <string name="toast_sos_sms_failed">SOS SMS भेजने में विफल</string>
+    <string name="toast_complete_profile_before_sos">Complete your profile and real emergency contacts before SOS.</string>
+    <string name="toast_test_sos_ready">Test SOS ready: permissions and message are valid.</string>
+    <string name="toast_some_contacts_failed">Some contacts failed. Use fallback share below.</string>
+    <string name="toast_live_followups_stopped">Live SOS follow-ups stopped.</string>
+    <string name="toast_auto_call_canceled">Auto emergency call canceled.</string>
     <string name="cd_language">भाषा</string>
     <string name="cd_call">कॉल</string>
     <string name="cd_sms">SMS</string>
     <string name="cd_copy">कॉपी</string>
+    <string name="cd_back">Back</string>
+    <string name="loading">लोड हो रहा है...</string>
+    <string name="no_emergency_contacts">अभी कोई आपातकालीन संपर्क नहीं है</string>
+    <string name="error_message">Error: %1$s</string>
+    <string name="init_error_failed_user">Failed to initialize user</string>
+    <string name="init_error_timeout">Initialization timeout</string>
+    <string name="init_error_unknown">Unknown error</string>
+    <string name="error_loading_profile_demo">Error loading profile. Using demo data.</string>
+    <string name="sos_countdown">SOS sending in %1$d s</string>
+    <string name="cancel_sos">Cancel SOS</string>
+    <string name="auto_call_countdown">Auto-calling %1$s in %2$d s</string>
+    <string name="cancel_auto_call">Cancel Auto Call</string>
+    <string name="fallback_share_sos">Fallback Share SOS</string>
+    <string name="stop_live_followups">Stop Live Location Follow-ups</string>
+    <string name="share_sos_chooser">Share SOS via another app</string>
+    <string name="sos_failed_contacts_header">Failed contacts:</string>
+    <string name="sos_sms_test_intro">TEST SOS: Please ignore.</string>
+    <string name="sos_sms_intro">SOS! I need help.</string>
+    <string name="sos_sms_name">Name: %1$s</string>
+    <string name="sos_sms_blood">Blood: %1$s</string>
+    <string name="sos_sms_address">Address: %1$s</string>
+    <string name="sos_sms_location">Location: %1$s</string>
+    <string name="sos_sms_profile_link">Profile Link: %1$s</string>
+    <string name="sos_follow_up_intro">SOS UPDATE: I still need help.</string>
+    <string name="sos_sms_time">Time: %1$s</string>
     <string name="notification_sos_delivered_title">SOS भेजा गया</string>
     <string name="notification_sos_delivered_text">आपातकालीन अलर्ट सफलतापूर्वक भेजा गया।</string>
     <string name="notification_sos_failed_title">SOS विफल</string>
     <string name="notification_sos_failed_text">आपातकालीन अलर्ट भेजा नहीं जा सका।</string>
-    <string name="loading">लोड हो रहा है...</string>
-    <string name="no_emergency_contacts">अभी कोई आपातकालीन संपर्क नहीं है</string>
-    
-    <!-- Edit Profile Screen -->
+    <string name="notification_channel_sos_name">Emergency Alerts</string>
+    <string name="notification_channel_sos_desc">SOS delivery updates</string>
+    <string name="notification_channel_fullscreen_name">Test Emergency Alerts</string>
+    <string name="notification_channel_fullscreen_desc">Test full-screen emergency alert on lock screen</string>
+    <string name="notification_test_fullscreen_title">Test Emergency Alert</string>
+    <string name="notification_test_fullscreen_text">Tap to open emergency QR on lock screen</string>
+    <string name="biometric_access_title">Access HelpID</string>
+    <string name="biometric_access_subtitle">Authenticate to view emergency information</string>
+    <string name="biometric_cancel">Cancel</string>
+    <string name="biometric_auth_failed">Authentication failed</string>
     <string name="edit_profile">प्रोफ़ाइल संपादित करें</string>
     <string name="update_emergency_information">अपनी आपातकालीन जानकारी अपडेट करें</string>
     <string name="emergency_contact_1">आपातकालीन संपर्क 1</string>
@@ -50,24 +84,48 @@
     <string name="section_medical_info">चिकित्सा जानकारी</string>
     <string name="section_contacts">आपातकालीन संपर्क</string>
     <string name="save">सहेजें</string>
+    <string name="saving">SAVING...</string>
     <string name="cancel">रद्द करें</string>
-    
-    <!-- QR Screen -->
+    <string name="add_contact">+ Add contact</string>
+    <string name="pick_contact">Pick</string>
+    <string name="contact_number">Contact %1$d</string>
+    <string name="cd_remove_contact">Remove contact</string>
+    <string name="validation_valid_name">Enter a valid name</string>
+    <string name="validation_blood_group">Use: A+, A-, B+, B-, AB+, AB-, O+, O-</string>
+    <string name="validation_required">Required</string>
+    <string name="validation_phone_international">Use +&lt;countrycode&gt;&lt;number&gt; (e.g. +14155552671)</string>
     <string name="emergency_access">आपातकालीन पहुंच</string>
     <string name="scan_to_view">आपातकालीन जानकारी देखने के लिए स्कैन करें</string>
     <string name="scan_this_code">अपनी आपातकालीन जानकारी तक पहुंचने के लिए इस कोड को स्कैन करें</string>
+    <string name="qr_nfc_title">Tap-to-Assist (NFC)</string>
+    <string name="qr_nfc_subtitle">Is profile ko kholne ke liye do phones saath tap karein.</string>
+    <string name="qr_nfc_active">NFC ACTIVE</string>
+    <string name="qr_nfc_enable">ENABLE NFC</string>
+    <string name="qr_nfc_unavailable">Is device par NFC uplabdh nahin hai</string>
+    <string name="qr_content_description">Emergency QR Code</string>
+    <string name="qr_mint_error">Secure link generate nahin ho saka. Internet check karke phir try karein.</string>
     <string name="share_qr_code">QR कोड साझा करें</string>
+    <string name="retry">RETRY</string>
     <string name="back">वापस</string>
-    
-    <!-- Share & Export -->
     <string name="export_pdf">PDF के रूप में निर्यात करें</string>
     <string name="share_emergency_info">आपातकालीन जानकारी साझा करें</string>
     <string name="share_whatsapp">WhatsApp के माध्यम से साझा करें</string>
     <string name="share_sms">SMS के माध्यम से साझा करें</string>
     <string name="share_email">ईमेल के माध्यम से साझा करें</string>
     <string name="pdf_exported">प्रोफ़ाइल PDF के रूप में निर्यात की गई</string>
-    
-    <!-- Language Selection -->
+    <string name="share_pdf_title">Share Emergency Profile PDF</string>
+    <string name="share_email_subject">My Emergency Medical Information</string>
+    <string name="share_profile_title">EMERGENCY MEDICAL PROFILE</string>
+    <string name="share_label_name">Name: %1$s</string>
+    <string name="share_label_blood_group">Blood Group: %1$s</string>
+    <string name="share_label_emergency_id">Emergency ID: %1$s</string>
+    <string name="share_conditions_header">CONDITIONS:</string>
+    <string name="share_contacts_header">EMERGENCY CONTACTS:</string>
+    <string name="pdf_title">EMERGENCY MEDICAL PROFILE</string>
+    <string name="pdf_section_personal">PERSONAL INFORMATION</string>
+    <string name="pdf_section_medical">EXTRA MEDICAL INFO</string>
+    <string name="pdf_section_contacts">EMERGENCY CONTACTS</string>
+    <string name="pdf_generated">Generated: %1$s</string>
     <string name="select_language">भाषा चुनें</string>
     <string name="choose_language_helper">अपनी पसंदीदा भाषा चुनें</string>
     <string name="apply">लागू करें</string>
@@ -77,17 +135,8 @@
     <string name="language_hindi">हिंदी</string>
     <string name="language_french">Français</string>
     <string name="language_german">Deutsch</string>
-    <string name="qr_nfc_title">Tap-to-Assist (NFC)</string>
-    <string name="qr_nfc_subtitle">Is profile ko kholne ke liye do phones saath tap karein.</string>
-    <string name="qr_nfc_active">NFC ACTIVE</string>
-    <string name="qr_nfc_enable">ENABLE NFC</string>
-    <string name="qr_nfc_unavailable">Is device par NFC uplabdh nahin hai</string>
-    <string name="qr_content_description">Emergency QR Code</string>
-    <string name="qr_mint_error">Secure link generate nahin ho saka. Internet check karke phir try karein.</string>
-    <string name="retry">RETRY</string>
+    <string name="language_vietnamese">Tiếng Việt</string>
     <string name="bottom_nav_id">ID</string>
     <string name="bottom_nav_qr">QR</string>
     <string name="bottom_nav_profile">Profile</string>
 </resources>
-
-

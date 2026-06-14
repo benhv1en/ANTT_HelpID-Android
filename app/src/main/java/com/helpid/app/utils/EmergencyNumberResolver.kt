@@ -9,6 +9,7 @@ object EmergencyNumberResolver {
     private val numberByCountry = mapOf(
         "US" to "911",
         "CA" to "911",
+        "VN" to "115",
         "IN" to "112",
         "GB" to "999",
         "IE" to "112",
@@ -44,7 +45,14 @@ object EmergencyNumberResolver {
     )
 
     fun resolve(context: Context): String {
+        val languageCode = LanguageManager.getSelectedLanguage(context).code
         val country = detectCountryIso(context)
+        return resolveFor(languageCode, country)
+    }
+
+    fun resolveFor(languageCode: String, countryIso: String): String {
+        if (languageCode == "vi") return "115"
+        val country = countryIso.uppercase(Locale.US)
         return numberByCountry[country] ?: "112"
     }
 

@@ -53,6 +53,7 @@ import com.helpid.app.data.EmergencyContactData
 import com.helpid.app.data.FirebaseRepository
 import com.helpid.app.data.UserProfile
 import com.helpid.app.ui.theme.HelpIDTheme
+import com.helpid.app.utils.LanguageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -264,7 +265,7 @@ fun EditProfileScreen(
                         label = stringResource(R.string.full_name),
                         value = name.value,
                         isError = nameError,
-                        supportingText = if (nameError) "Enter a valid name" else null,
+                        supportingText = if (nameError) stringResource(R.string.validation_valid_name) else null,
                         onValueChange = { name.value = sanitizeNameInput(it) }
                     )
 
@@ -273,7 +274,7 @@ fun EditProfileScreen(
                         label = stringResource(R.string.blood_group),
                         value = bloodGroup.value,
                         isError = bloodError,
-                        supportingText = if (bloodError) "Use: A+, A-, B+, B-, AB+, AB-, O+, O-" else null,
+                        supportingText = if (bloodError) stringResource(R.string.validation_blood_group) else null,
                         onValueChange = { bloodGroup.value = sanitizeBloodGroupInput(it) }
                     )
 
@@ -388,14 +389,14 @@ fun EditProfileScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         SecondaryButton(
-                            text = "+ Add contact",
+                            text = stringResource(R.string.add_contact),
                             onClick = {
                                 emergencyContacts.add(EmergencyContactData())
                             },
                             modifier = Modifier.weight(1f)
                         )
                         SecondaryButton(
-                            text = "Pick",
+                            text = stringResource(R.string.pick_contact),
                             onClick = { pickContactLauncher.launch(null) },
                             modifier = Modifier.weight(0.7f)
                         )
@@ -414,7 +415,7 @@ fun EditProfileScreen(
             ) {
                 // Save Button
                 PrimaryButton(
-                    text = if (isSaving.value) "SAVING..." else stringResource(R.string.save),
+                    text = if (isSaving.value) stringResource(R.string.saving) else stringResource(R.string.save),
                     onClick = {
                         isSaving.value = true
                         
@@ -431,7 +432,7 @@ fun EditProfileScreen(
                             medicalNotes = medicalNotes.value.split("\n").filter { it.isNotBlank() },
                             emergencyContacts = emergencyContacts
                                 .filter { it.name.isNotBlank() && it.phone.isNotBlank() },
-                            language = "en"
+                            language = LanguageManager.getSelectedLanguage(context).code
                         )
 
                         // Save to Firebase in coroutine
@@ -643,7 +644,7 @@ private fun ContactEditor(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Contact ${index + 1}",
+                    text = stringResource(R.string.contact_number, index + 1),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -652,7 +653,7 @@ private fun ContactEditor(
                     IconButton(onClick = onRemove) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Remove contact",
+                            contentDescription = stringResource(R.string.cd_remove_contact),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -664,7 +665,7 @@ private fun ContactEditor(
                 label = stringResource(R.string.full_name),
                 value = name,
                 isError = nameError,
-                supportingText = if (nameError) "Required" else null,
+                supportingText = if (nameError) stringResource(R.string.validation_required) else null,
                 onValueChange = onNameChange
             )
 
@@ -673,7 +674,7 @@ private fun ContactEditor(
                 label = stringResource(R.string.phone),
                 value = phone,
                 isError = phoneError,
-                supportingText = if (phoneError) "Use +<countrycode><number> (e.g. +14155552671)" else null,
+                supportingText = if (phoneError) stringResource(R.string.validation_phone_international) else null,
                 onValueChange = onPhoneChange
             )
         }

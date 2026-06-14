@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
+import com.helpid.app.R
 import java.util.concurrent.Executor
 
 object BiometricUtils {
@@ -38,15 +39,15 @@ object BiometricUtils {
 
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
-                    onError("Authentication failed")
+                    onError(activity.getString(R.string.biometric_auth_failed))
                 }
             }
         )
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Access HelpID")
-            .setSubtitle("Authenticate to view emergency information")
-            .setNegativeButtonText("Cancel")
+            .setTitle(activity.getString(R.string.biometric_access_title))
+            .setSubtitle(activity.getString(R.string.biometric_access_subtitle))
+            .setNegativeButtonText(activity.getString(R.string.biometric_cancel))
             .build()
 
         biometricPrompt.authenticate(promptInfo)

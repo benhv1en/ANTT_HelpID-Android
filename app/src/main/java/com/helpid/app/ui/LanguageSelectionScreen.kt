@@ -141,7 +141,7 @@ fun LanguageOption(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = language.displayName,
+            text = stringResource(language.displayNameRes),
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
             color = contentColor,

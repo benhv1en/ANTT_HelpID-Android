@@ -1,6 +1,7 @@
 package com.helpid.app.utils
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -17,16 +18,13 @@ import com.helpid.app.R
 class NotificationHelper(private val context: Context) {
     companion object {
         private const val CHANNEL_ID = "sos_alerts"
-        private const val CHANNEL_NAME = "Emergency Alerts"
-        private const val CHANNEL_DESC = "SOS delivery updates"
         private const val FULLSCREEN_CHANNEL_ID = "sos_test_fullscreen"
-        private const val FULLSCREEN_CHANNEL_NAME = "Test Emergency Alerts"
-        private const val FULLSCREEN_CHANNEL_DESC = "Test full-screen emergency alert on lock screen"
         private const val DELIVERED_ID = 2001
         private const val FAILED_ID = 2002
         private const val TEST_FULLSCREEN_ID = 2101
     }
 
+    @SuppressLint("MissingPermission")
     fun showSosDelivered() {
         ensureChannel()
         if (!hasNotificationPermission()) return
@@ -42,6 +40,7 @@ class NotificationHelper(private val context: Context) {
         NotificationManagerCompat.from(context).notify(DELIVERED_ID, notification)
     }
 
+    @SuppressLint("MissingPermission")
     fun showSosFailed() {
         ensureChannel()
         if (!hasNotificationPermission()) return
@@ -57,6 +56,7 @@ class NotificationHelper(private val context: Context) {
         NotificationManagerCompat.from(context).notify(FAILED_ID, notification)
     }
 
+    @SuppressLint("MissingPermission")
     fun showTestLockScreenQrAlert(userId: String) {
         ensureFullScreenChannel()
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -74,8 +74,8 @@ class NotificationHelper(private val context: Context) {
 
         val notification = NotificationCompat.Builder(context, FULLSCREEN_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Test Emergency Alert")
-            .setContentText("Tap to open emergency QR on lock screen")
+            .setContentTitle(context.getString(R.string.notification_test_fullscreen_title))
+            .setContentText(context.getString(R.string.notification_test_fullscreen_text))
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -101,10 +101,10 @@ class NotificationHelper(private val context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
             CHANNEL_ID,
-            CHANNEL_NAME,
+            context.getString(R.string.notification_channel_sos_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = CHANNEL_DESC
+            description = context.getString(R.string.notification_channel_sos_desc)
             enableVibration(true)
             lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
         }
@@ -116,10 +116,10 @@ class NotificationHelper(private val context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
             FULLSCREEN_CHANNEL_ID,
-            FULLSCREEN_CHANNEL_NAME,
+            context.getString(R.string.notification_channel_fullscreen_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = FULLSCREEN_CHANNEL_DESC
+            description = context.getString(R.string.notification_channel_fullscreen_desc)
             enableVibration(true)
             lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
         }

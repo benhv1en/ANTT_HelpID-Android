@@ -14,6 +14,8 @@ import androidx.work.WorkerParameters
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.Tasks
+import com.helpid.app.R
+import com.helpid.app.utils.LanguageManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -45,13 +47,24 @@ class SosFollowUpWorker(
         } else {
             ""
         }
+        val localizedContext = LanguageManager.applySavedLanguage(applicationContext)
         val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val msg = buildString {
-            append("SOS UPDATE: I still need help.")
-            if (userName.isNotBlank()) append("\nName: $userName")
-            if (bloodGroup.isNotBlank()) append("\nBlood: $bloodGroup")
-            append("\nTime: $timestamp")
-            if (mapsLink.isNotBlank()) append("\nLocation: $mapsLink")
+            append(localizedContext.getString(R.string.sos_follow_up_intro))
+            if (userName.isNotBlank()) {
+                append("\n")
+                append(localizedContext.getString(R.string.sos_sms_name, userName))
+            }
+            if (bloodGroup.isNotBlank()) {
+                append("\n")
+                append(localizedContext.getString(R.string.sos_sms_blood, bloodGroup))
+            }
+            append("\n")
+            append(localizedContext.getString(R.string.sos_sms_time, timestamp))
+            if (mapsLink.isNotBlank()) {
+                append("\n")
+                append(localizedContext.getString(R.string.sos_sms_location, mapsLink))
+            }
         }
 
         val smsManager = SmsManager.getDefault()

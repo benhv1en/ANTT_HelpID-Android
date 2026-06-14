@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">HelpID</string>
-    
-    <!-- Emergency Screen -->
     <string name="emergency_id">Notfall-ID</string>
     <string name="for_medical_emergencies">Zur Verwendung im medizinischen Notfall</string>
     <string name="full_name">Vollständiger Name</string>
@@ -12,7 +10,7 @@
     <string name="medical_conditions">Zusätzliche medizinische Infos</string>
     <string name="updated">Aktualisiert: %s</string>
     <string name="emergency_contacts">Notfallkontakte</string>
-    <string name="call_emergency">NOTFALL ANRUFEN • 112</string>
+    <string name="call_emergency">NOTFALL ANRUFEN - %1$s</string>
     <string name="show_qr_code">QR-Code anzeigen</string>
     <string name="edit">Bearbeiten</string>
     <string name="sos_button">SOS</string>
@@ -27,18 +25,54 @@
     <string name="toast_sos_triggered">SOS ausgelöst</string>
     <string name="toast_sos_no_contacts">Füge mindestens einen Notfallkontakt hinzu</string>
     <string name="toast_sos_sms_failed">SOS-SMS konnte nicht gesendet werden</string>
+    <string name="toast_complete_profile_before_sos">Complete your profile and real emergency contacts before SOS.</string>
+    <string name="toast_test_sos_ready">Test SOS ready: permissions and message are valid.</string>
+    <string name="toast_some_contacts_failed">Some contacts failed. Use fallback share below.</string>
+    <string name="toast_live_followups_stopped">Live SOS follow-ups stopped.</string>
+    <string name="toast_auto_call_canceled">Auto emergency call canceled.</string>
     <string name="cd_language">Sprache</string>
     <string name="cd_call">Anrufen</string>
     <string name="cd_sms">SMS</string>
     <string name="cd_copy">Kopieren</string>
+    <string name="cd_back">Back</string>
+    <string name="loading">Laden...</string>
+    <string name="no_emergency_contacts">Noch keine Notfallkontakte hinzugefügt</string>
+    <string name="error_message">Error: %1$s</string>
+    <string name="init_error_failed_user">Failed to initialize user</string>
+    <string name="init_error_timeout">Initialization timeout</string>
+    <string name="init_error_unknown">Unknown error</string>
+    <string name="error_loading_profile_demo">Error loading profile. Using demo data.</string>
+    <string name="sos_countdown">SOS sending in %1$d s</string>
+    <string name="cancel_sos">Cancel SOS</string>
+    <string name="auto_call_countdown">Auto-calling %1$s in %2$d s</string>
+    <string name="cancel_auto_call">Cancel Auto Call</string>
+    <string name="fallback_share_sos">Fallback Share SOS</string>
+    <string name="stop_live_followups">Stop Live Location Follow-ups</string>
+    <string name="share_sos_chooser">Share SOS via another app</string>
+    <string name="sos_failed_contacts_header">Failed contacts:</string>
+    <string name="sos_sms_test_intro">TEST SOS: Please ignore.</string>
+    <string name="sos_sms_intro">SOS! I need help.</string>
+    <string name="sos_sms_name">Name: %1$s</string>
+    <string name="sos_sms_blood">Blood: %1$s</string>
+    <string name="sos_sms_address">Address: %1$s</string>
+    <string name="sos_sms_location">Location: %1$s</string>
+    <string name="sos_sms_profile_link">Profile Link: %1$s</string>
+    <string name="sos_follow_up_intro">SOS UPDATE: I still need help.</string>
+    <string name="sos_sms_time">Time: %1$s</string>
     <string name="notification_sos_delivered_title">SOS gesendet</string>
     <string name="notification_sos_delivered_text">Notfallwarnung erfolgreich gesendet.</string>
     <string name="notification_sos_failed_title">SOS fehlgeschlagen</string>
     <string name="notification_sos_failed_text">Notfallwarnung konnte nicht gesendet werden.</string>
-    <string name="loading">Laden...</string>
-    <string name="no_emergency_contacts">Noch keine Notfallkontakte hinzugefügt</string>
-    
-    <!-- Edit Profile Screen -->
+    <string name="notification_channel_sos_name">Emergency Alerts</string>
+    <string name="notification_channel_sos_desc">SOS delivery updates</string>
+    <string name="notification_channel_fullscreen_name">Test Emergency Alerts</string>
+    <string name="notification_channel_fullscreen_desc">Test full-screen emergency alert on lock screen</string>
+    <string name="notification_test_fullscreen_title">Test Emergency Alert</string>
+    <string name="notification_test_fullscreen_text">Tap to open emergency QR on lock screen</string>
+    <string name="biometric_access_title">Access HelpID</string>
+    <string name="biometric_access_subtitle">Authenticate to view emergency information</string>
+    <string name="biometric_cancel">Cancel</string>
+    <string name="biometric_auth_failed">Authentication failed</string>
     <string name="edit_profile">Profil bearbeiten</string>
     <string name="update_emergency_information">Aktualisieren Sie Ihre Notfallinformationen</string>
     <string name="emergency_contact_1">Notfallkontakt 1</string>
@@ -50,24 +84,48 @@
     <string name="section_medical_info">Medizinische Informationen</string>
     <string name="section_contacts">Notfallkontakte</string>
     <string name="save">Speichern</string>
+    <string name="saving">SAVING...</string>
     <string name="cancel">Abbrechen</string>
-    
-    <!-- QR Screen -->
+    <string name="add_contact">+ Add contact</string>
+    <string name="pick_contact">Pick</string>
+    <string name="contact_number">Contact %1$d</string>
+    <string name="cd_remove_contact">Remove contact</string>
+    <string name="validation_valid_name">Enter a valid name</string>
+    <string name="validation_blood_group">Use: A+, A-, B+, B-, AB+, AB-, O+, O-</string>
+    <string name="validation_required">Required</string>
+    <string name="validation_phone_international">Use +&lt;countrycode&gt;&lt;number&gt; (e.g. +14155552671)</string>
     <string name="emergency_access">Notfallzugriff</string>
     <string name="scan_to_view">Zum Anzeigen von Notfallinformationen scannen</string>
     <string name="scan_this_code">Scannen Sie diesen Code, um auf Ihre Notfallinformationen zuzugreifen</string>
+    <string name="qr_nfc_title">Tap-to-Assist (NFC)</string>
+    <string name="qr_nfc_subtitle">Halte zwei Telefone zusammen, um dieses Profil zu offnen.</string>
+    <string name="qr_nfc_active">NFC AKTIV</string>
+    <string name="qr_nfc_enable">NFC AKTIVIEREN</string>
+    <string name="qr_nfc_unavailable">NFC auf diesem Gerat nicht verfugbar</string>
+    <string name="qr_content_description">Notfall-QR-Code</string>
+    <string name="qr_mint_error">Sicherer Link konnte nicht erstellt werden. Internet prufen und erneut versuchen.</string>
     <string name="share_qr_code">QR-Code teilen</string>
+    <string name="retry">ERNEUT</string>
     <string name="back">ZURÜCK</string>
-    
-    <!-- Share & Export -->
     <string name="export_pdf">Als PDF exportieren</string>
     <string name="share_emergency_info">Notfallinformationen teilen</string>
     <string name="share_whatsapp">Über WhatsApp teilen</string>
     <string name="share_sms">Über SMS teilen</string>
     <string name="share_email">Über E-Mail teilen</string>
     <string name="pdf_exported">Profil als PDF exportiert</string>
-    
-    <!-- Language Selection -->
+    <string name="share_pdf_title">Share Emergency Profile PDF</string>
+    <string name="share_email_subject">My Emergency Medical Information</string>
+    <string name="share_profile_title">EMERGENCY MEDICAL PROFILE</string>
+    <string name="share_label_name">Name: %1$s</string>
+    <string name="share_label_blood_group">Blood Group: %1$s</string>
+    <string name="share_label_emergency_id">Emergency ID: %1$s</string>
+    <string name="share_conditions_header">CONDITIONS:</string>
+    <string name="share_contacts_header">EMERGENCY CONTACTS:</string>
+    <string name="pdf_title">EMERGENCY MEDICAL PROFILE</string>
+    <string name="pdf_section_personal">PERSONAL INFORMATION</string>
+    <string name="pdf_section_medical">EXTRA MEDICAL INFO</string>
+    <string name="pdf_section_contacts">EMERGENCY CONTACTS</string>
+    <string name="pdf_generated">Generated: %1$s</string>
     <string name="select_language">Sprache Wählen</string>
     <string name="choose_language_helper">Bevorzugte Sprache wählen</string>
     <string name="apply">ANWENDEN</string>
@@ -77,17 +135,8 @@
     <string name="language_hindi">हिंदी</string>
     <string name="language_french">Français</string>
     <string name="language_german">Deutsch</string>
-    <string name="qr_nfc_title">Tap-to-Assist (NFC)</string>
-    <string name="qr_nfc_subtitle">Halte zwei Telefone zusammen, um dieses Profil zu offnen.</string>
-    <string name="qr_nfc_active">NFC AKTIV</string>
-    <string name="qr_nfc_enable">NFC AKTIVIEREN</string>
-    <string name="qr_nfc_unavailable">NFC auf diesem Gerat nicht verfugbar</string>
-    <string name="qr_content_description">Notfall-QR-Code</string>
-    <string name="qr_mint_error">Sicherer Link konnte nicht erstellt werden. Internet prufen und erneut versuchen.</string>
-    <string name="retry">ERNEUT</string>
+    <string name="language_vietnamese">Tiếng Việt</string>
     <string name="bottom_nav_id">ID</string>
     <string name="bottom_nav_qr">QR</string>
     <string name="bottom_nav_profile">Profil</string>
 </resources>
-
-
