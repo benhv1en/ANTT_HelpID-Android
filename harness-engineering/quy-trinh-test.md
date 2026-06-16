@@ -95,6 +95,16 @@ Unit test phù hợp:
 - `Converters`: list string và list contact round-trip.
 - Mapping local/domain trong repository nếu tách helper public/internal testable.
 - Auth token store và API repository nếu có mock HTTP/local fake.
+- Logic quyết định auth state biometric: `BiometricAuthDecision.resolveAuthState` — hàm thuần, không cần mock.
+- Mapping availability status / error code → string resource key: `BiometricUtils.availabilityFromStatus`, `BiometricUtils.errorFromCode`, `BiometricPromptFailure.messageResId`.
+- User isolation trong biometric prefs: `BiometricPreferenceStore.userScopedKey`, `sha256Hex`.
+
+Pattern khi viết unit test cho logic có Android dependency:
+
+- Tách phần thuần (quyết định state, mapping, validation) thành hàm/function không dùng Context/Activity.
+- Đặt hàm thuần ở package-level hoặc companion object với visibility `internal` nếu chỉ cần test nội bộ.
+- Wrapper composable/view-layer chỉ gọi hàm thuần và cung cấp context; không đặt logic quyết định trực tiếp trong composable.
+- Hàm thuần viết test JVM thường (không cần Robolectric hoặc emulator).
 
 Instrumentation/manual test phù hợp:
 

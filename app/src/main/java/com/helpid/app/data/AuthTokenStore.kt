@@ -36,6 +36,33 @@ class AuthTokenStore(context: Context) {
 
     fun hasValidSession(): Boolean = getAccessToken() != null && !isAccessTokenExpired()
 
+    /**
+     * Decodes the stored JWT access token payload and returns true if the
+     * permission claim "admin:metadata:read" is present.
+     *
+     * This is a client-side UI gate only — the backend always enforces
+     * RequireAuthorization("AdminMetadata") independently.
+     * No token bytes or payload content are logged.
+     */
+    fun isAdmin(): Boolean {
+        val token = getAccessToken() ?: return false
+        return try {
+            val parts = token.split(".")
+            if (parts.size != 3) return false
+            val encoded = parts[1]
+                .replace('-', '+')
+                .replace('_', '/')
+                .padEnd((parts[1].length + 3) / 4 * 4, '=')
+            val payloadJson = String(
+                android.util.Base64.decode(encoded, android.util.Base64.DEFAULT),
+                Charsets.UTF_8
+            )
+            payloadJson.contains("\"admin:metadata:read\"")
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun clearTokens() {
         prefs.edit().clear().apply()
     }

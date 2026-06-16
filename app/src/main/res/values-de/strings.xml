@@ -73,6 +73,23 @@
     <string name="biometric_access_subtitle">Authenticate to view emergency information</string>
     <string name="biometric_cancel">Cancel</string>
     <string name="biometric_auth_failed">Authentication failed</string>
+    <string name="biometric_not_available">Fingerabdruck ist auf diesem Gerät nicht verfügbar.</string>
+    <string name="biometric_not_enrolled">Füge zuerst einen Fingerabdruck in den Systemeinstellungen hinzu.</string>
+    <string name="biometric_locked_out">Zu viele Versuche. Bitte später erneut versuchen.</string>
+    <string name="biometric_settings_title">Entsperren per Fingerabdruck</string>
+    <string name="biometric_settings_body">Beim Öffnen geschützter HelpID-Bereiche auf diesem Gerät Fingerabdruck oder Gerätesperre verlangen.</string>
+    <string name="biometric_disable_confirm_title">Fingerabdruck-Entsperrung deaktivieren?</string>
+    <string name="biometric_disable_confirm_body">HelpID fragt auf diesem Gerät nicht mehr nach biometrischer Entsperrung.</string>
+    <string name="biometric_turn_off">DEAKTIVIEREN</string>
+    <string name="biometric_keep_on">AKTIV LASSEN</string>
+    <string name="biometric_enabled">Fingerabdruck-Entsperrung ist aktiviert.</string>
+    <string name="biometric_disabled">Fingerabdruck-Entsperrung ist deaktiviert.</string>
+    <string name="biometric_canceled">Authentifizierung wurde abgebrochen.</string>
+    <string name="biometric_system_error">Fingerabdruck-Entsperrung ist vorübergehend nicht verfügbar.</string>
+    <string name="biometric_unlock_title">HelpID entsperren</string>
+    <string name="biometric_unlock_subtitle">Verwende Fingerabdruck oder Gerätesperre, um fortzufahren.</string>
+    <string name="biometric_try_again">ERNEUT VERSUCHEN</string>
+    <string name="biometric_use_password">Stattdessen Passwort verwenden</string>
     <string name="edit_profile">Profil bearbeiten</string>
     <string name="update_emergency_information">Aktualisieren Sie Ihre Notfallinformationen</string>
     <string name="emergency_contact_1">Notfallkontakt 1</string>
@@ -178,4 +195,43 @@
     <string name="auth_logout_confirm_no">ABBRECHEN</string>
     <string name="auth_cd_show_password">Passwort anzeigen</string>
     <string name="auth_cd_hide_password">Passwort verbergen</string>
+
+    <!-- Server settings dialog -->
+    <string name="server_settings">Servereinstellungen</string>
+    <string name="server_url_label">Server-URL</string>
+    <string name="server_url_hint">http://192.168.x.x:5080</string>
+    <string name="server_url_save">Speichern</string>
+    <string name="server_url_test">Verbindung testen</string>
+    <string name="server_url_test_ok">Verbunden</string>
+    <string name="server_url_test_fail">Keine Verbindung</string>
+    <string name="save_error">Speichern fehlgeschlagen. Bitte erneut versuchen.</string>
+
+    <!-- Admin Screen -->
+    <string name="admin_screen_title">Admin</string>
+    <string name="admin_tab_dashboard">Dashboard</string>
+    <string name="admin_tab_users">Benutzer</string>
+    <string name="admin_stat_total_users">Gesamtbenutzer</string>
+    <string name="admin_stat_total_profiles">Erstellte Profile</string>
+    <string name="admin_stat_total_links">Gemintete öffentliche Links</string>
+    <string name="admin_stat_audit_7d">Audit-Ereignisse (7 Tage)</string>
+    <string name="admin_user_role_label">Rollen</string>
+    <string name="admin_user_locked">Gesperrt</string>
+    <string name="admin_user_active">Aktiv</string>
+    <string name="admin_assign_admin_role">Admin zuweisen</string>
+    <string name="admin_revoke_admin_role">Admin entziehen</string>
+    <string name="admin_action_success">Fertig</string>
+    <string name="admin_action_loading">Verarbeitung…</string>
+    <string name="admin_error_unauthorized">Sie haben keinen Administratorzugang.</string>
+    <string name="admin_error_network">Netzwerkfehler. Bitte erneut versuchen.</string>
+    <string name="admin_error_not_found">Benutzer nicht gefunden.</string>
+    <string name="admin_self_revoke_blocked">Sie können Ihre eigene Administratorrolle nicht entfernen.</string>
+    <string name="admin_entry_button">Admin-Bereich</string>
+    <string name="admin_prev_page">Zurück</string>
+    <string name="admin_next_page">Weiter</string>
+    <string name="admin_no_users">Keine Benutzer gefunden.</string>
+    <string name="admin_dismiss">Schließen</string>
+    <string name="admin_role_empty">Keine</string>
+    <string name="admin_page_of">%1$d / %2$d</string>
+    <string name="admin_cd_assign_role">Admin zuweisen für %s</string>
+    <string name="admin_cd_revoke_role">Admin entziehen von %s</string>
 </resources>

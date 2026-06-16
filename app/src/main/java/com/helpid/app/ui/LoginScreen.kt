@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
@@ -57,6 +58,7 @@ import com.helpid.app.data.AuthRepository
 import com.helpid.app.data.AuthResult
 import com.helpid.app.data.AuthTokenStore
 import com.helpid.app.ui.components.GhostButton
+import com.helpid.app.ui.components.ServerSettingsDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,6 +83,7 @@ fun LoginScreen(
     var apiError by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
+    var showServerDialog by remember { mutableStateOf(false) }
 
     fun submit() {
         if (isLoading) return
@@ -289,7 +292,24 @@ fun LoginScreen(
                 enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = { showServerDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.server_settings),
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                    )
+                }
+            }
         }
+    }
+
+    if (showServerDialog) {
+        ServerSettingsDialog(onDismiss = { showServerDialog = false })
     }
 }
 

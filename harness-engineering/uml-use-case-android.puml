@@ -19,6 +19,7 @@ skinparam actor {
 title HelpID Android - Sơ đồ UML Use-case
 
 actor "Người dùng HelpID\n(Android)" as User
+actor "Quản trị viên HelpID\n(role Admin)" as Admin
 actor "Liên hệ khẩn cấp" as EmergencyContact
 actor "Người phản hồi / cứu hộ\n(quét QR hoặc NFC)" as Responder
 
@@ -29,6 +30,7 @@ actor "Hệ thống SMS / Điện thoại" as Telephony <<external>>
 actor "Danh bạ Android" as ContactsProvider <<external>>
 actor "Thiết bị NFC" as NfcDevice <<external>>
 actor "SQLite Room local" as RoomDb <<external>>
+actor "Android BiometricPrompt" as BiometricSystem <<external>>
 
 rectangle "Ứng dụng Android HelpID" as AndroidApp {
   usecase "Đăng ký tài khoản" as UC_AndroidRegister
@@ -36,6 +38,9 @@ rectangle "Ứng dụng Android HelpID" as AndroidApp {
   usecase "Khôi phục session\nkhi mở app" as UC_AndroidRestoreSession
   usecase "Refresh access token" as UC_AndroidRefreshToken
   usecase "Logout và xóa token local" as UC_AndroidLogout
+  usecase "Bật / tắt xác thực\nvân tay" as UC_EnableBiometric
+  usecase "Mở khóa app\nbằng vân tay" as UC_BiometricUnlock
+  usecase "Kiểm tra biometric\nkhả dụng / đã enroll" as UC_CheckBiometric
   usecase "Xem ID / hồ sơ khẩn cấp\noffline-first" as UC_ViewEmergencyId
   usecase "Mở app từ deep link\nhelpid://e/{publicKey}" as UC_OpenAndroidDeepLink
   usecase "Xem hồ sơ local cache\nkhi offline hoặc token lỗi" as UC_ViewLocalCache
@@ -61,12 +66,25 @@ rectangle "Ứng dụng Android HelpID" as AndroidApp {
   usecase "Bật NFC Tap-to-Assist\nqua backend mint" as UC_EnableNfc
   usecase "Gọi POST /emergency-links/mint\n(tự refresh token nếu hết hạn)" as UC_CallBackendMint
   usecase "Chia sẻ / xuất PDF" as UC_ShareExportProfile
+  usecase "Phát hiện quyền Admin\ntừ JWT claim" as UC_DetectAdmin
+  usecase "Vào trang Admin" as UC_OpenAdmin
+  usecase "Xem dashboard thống kê\n(tổng user, profile, link, audit)" as UC_AdminDashboard
+  usecase "Xem danh sách user\nvới phân trang" as UC_AdminListUsers
+  usecase "Gán role Admin\ncho user khác" as UC_AdminAssignRole
+  usecase "Thu hồi role Admin\ncủa user khác" as UC_AdminRevokeRole
+  usecase "Gọi admin API\nvà tự refresh token" as UC_CallAdminApi
 }
+
+Admin -- UC_OpenAdmin
+Admin -- UC_AdminAssignRole
+Admin -- UC_AdminRevokeRole
 
 User -- UC_AndroidRegister
 User -- UC_AndroidLogin
 User -- UC_AndroidRestoreSession
 User -- UC_AndroidLogout
+User -- UC_EnableBiometric
+User -- UC_BiometricUnlock
 User -- UC_ViewEmergencyId
 Responder -- UC_OpenAndroidDeepLink
 User -- UC_EditProfile
@@ -88,6 +106,11 @@ Responder -- UC_EnableNfc
 
 UC_AndroidRegister ..> UC_AndroidRefreshToken : <<extend>>
 UC_AndroidRestoreSession ..> UC_AndroidRefreshToken : <<include>>
+UC_BiometricUnlock ..> UC_AndroidRestoreSession : <<extend>>
+UC_BiometricUnlock ..> UC_CheckBiometric : <<include>>
+UC_EnableBiometric ..> UC_CheckBiometric : <<include>>
+UC_EnableBiometric ..> BiometricSystem : <<include>>
+UC_BiometricUnlock ..> BiometricSystem : <<include>>
 UC_AndroidLogout ..> BackendApi : <<include>>
 UC_AndroidRegister ..> BackendApi : <<include>>
 UC_AndroidLogin ..> BackendApi : <<include>>
@@ -118,6 +141,16 @@ UC_EnableNfc ..> UC_CallBackendMint : <<include>>
 UC_CallBackendMint ..> UC_AndroidRefreshToken : <<include>>
 UC_CallBackendMint ..> BackendApi : <<include>>
 
+UC_OpenAdmin ..> UC_DetectAdmin : <<include>>
+UC_OpenAdmin ..> UC_AdminDashboard : <<include>>
+UC_OpenAdmin ..> UC_AdminListUsers : <<include>>
+UC_AdminDashboard ..> UC_CallAdminApi : <<include>>
+UC_AdminListUsers ..> UC_CallAdminApi : <<include>>
+UC_AdminAssignRole ..> UC_CallAdminApi : <<include>>
+UC_AdminRevokeRole ..> UC_CallAdminApi : <<include>>
+UC_CallAdminApi ..> UC_AndroidRefreshToken : <<include>>
+UC_CallAdminApi ..> BackendApi : <<include>>
+
 BackendApi -- UC_AndroidRegister
 BackendApi -- UC_AndroidLogin
 BackendApi -- UC_AndroidRefreshToken
@@ -133,15 +166,38 @@ ContactsProvider -- UC_PickContact
 NfcDevice -- UC_EnableNfc
 RoomDb -- UC_SaveLocal
 RoomDb -- UC_ViewLocalCache
+BiometricSystem -- UC_CheckBiometric
+BiometricSystem -- UC_BiometricUnlock
 
 note right of UC_ViewLocalCache
   Token lỗi / offline không được chặn
   hồ sơ đã cache trong tình huống khẩn cấp.
 end note
 
+note right of UC_BiometricUnlock
+  Vân tay chỉ mở khóa UI local cho session
+  đã có. Không thay thế backend JWT/refresh
+  token và không gửi biometric lên backend.
+end note
+
 note bottom of UC_CallBackendMint
   Nếu offline hoặc backend lỗi, không render
   URL hỏng và SOS không crash. Chỉ đưa link
   vào tin nhắn khi backend trả URL hợp lệ.
+end note
+
+note right of UC_OpenAdmin
+  Nút Admin chỉ hiện khi isAdmin() == true
+  (decode JWT payload, kiểm tra claim
+  permission: admin:metadata:read).
+  Kiểm tra client-side chỉ để ẩn/hiện UI;
+  backend vẫn enforce AdminMetadata policy.
+end note
+
+note right of UC_AdminRevokeRole
+  Admin không thể thu hồi role Admin
+  của chính mình (backend trả 403).
+  Admin chỉ thấy metadata user (email, role,
+  ngày tạo) — không thấy dữ liệu y tế.
 end note
 @enduml

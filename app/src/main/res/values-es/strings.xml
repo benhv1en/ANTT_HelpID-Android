@@ -73,6 +73,23 @@
     <string name="biometric_access_subtitle">Authenticate to view emergency information</string>
     <string name="biometric_cancel">Cancel</string>
     <string name="biometric_auth_failed">Authentication failed</string>
+    <string name="biometric_not_available">La huella no está disponible en este dispositivo.</string>
+    <string name="biometric_not_enrolled">Agrega una huella en ajustes del sistema primero.</string>
+    <string name="biometric_locked_out">Demasiados intentos. Inténtalo más tarde.</string>
+    <string name="biometric_settings_title">Desbloqueo con huella</string>
+    <string name="biometric_settings_body">Requerir huella o credencial del dispositivo al abrir pantallas protegidas de HelpID en este dispositivo.</string>
+    <string name="biometric_disable_confirm_title">¿Desactivar desbloqueo con huella?</string>
+    <string name="biometric_disable_confirm_body">HelpID dejará de pedir desbloqueo biométrico en este dispositivo.</string>
+    <string name="biometric_turn_off">DESACTIVAR</string>
+    <string name="biometric_keep_on">MANTENER</string>
+    <string name="biometric_enabled">Desbloqueo con huella activado.</string>
+    <string name="biometric_disabled">Desbloqueo con huella desactivado.</string>
+    <string name="biometric_canceled">La autenticación fue cancelada.</string>
+    <string name="biometric_system_error">El desbloqueo con huella no está disponible temporalmente.</string>
+    <string name="biometric_unlock_title">Desbloquear HelpID</string>
+    <string name="biometric_unlock_subtitle">Usa tu huella o credencial del dispositivo para continuar.</string>
+    <string name="biometric_try_again">INTENTAR DE NUEVO</string>
+    <string name="biometric_use_password">Usar contraseña</string>
     <string name="edit_profile">Editar Perfil</string>
     <string name="update_emergency_information">Actualiza tu información de emergencia</string>
     <string name="emergency_contact_1">Contacto de Emergencia 1</string>
@@ -178,4 +195,43 @@
     <string name="auth_logout_confirm_no">CANCELAR</string>
     <string name="auth_cd_show_password">Mostrar contraseña</string>
     <string name="auth_cd_hide_password">Ocultar contraseña</string>
+
+    <!-- Server settings dialog -->
+    <string name="server_settings">Configuración del servidor</string>
+    <string name="server_url_label">URL del servidor</string>
+    <string name="server_url_hint">http://192.168.x.x:5080</string>
+    <string name="server_url_save">Guardar</string>
+    <string name="server_url_test">Probar conexión</string>
+    <string name="server_url_test_ok">Conectado</string>
+    <string name="server_url_test_fail">Sin conexión</string>
+    <string name="save_error">Error al guardar. Inténtelo de nuevo.</string>
+
+    <!-- Admin Screen -->
+    <string name="admin_screen_title">Admin</string>
+    <string name="admin_tab_dashboard">Panel</string>
+    <string name="admin_tab_users">Usuarios</string>
+    <string name="admin_stat_total_users">Total de usuarios</string>
+    <string name="admin_stat_total_profiles">Perfiles creados</string>
+    <string name="admin_stat_total_links">Enlaces públicos creados</string>
+    <string name="admin_stat_audit_7d">Eventos de auditoría (7 días)</string>
+    <string name="admin_user_role_label">Roles</string>
+    <string name="admin_user_locked">Bloqueado</string>
+    <string name="admin_user_active">Activo</string>
+    <string name="admin_assign_admin_role">Otorgar Admin</string>
+    <string name="admin_revoke_admin_role">Revocar Admin</string>
+    <string name="admin_action_success">Listo</string>
+    <string name="admin_action_loading">Procesando…</string>
+    <string name="admin_error_unauthorized">No tienes acceso de administrador.</string>
+    <string name="admin_error_network">Error de red. Inténtelo de nuevo.</string>
+    <string name="admin_error_not_found">Usuario no encontrado.</string>
+    <string name="admin_self_revoke_blocked">No puede eliminar su propio rol de administrador.</string>
+    <string name="admin_entry_button">Panel de Admin</string>
+    <string name="admin_prev_page">Anterior</string>
+    <string name="admin_next_page">Siguiente</string>
+    <string name="admin_no_users">No se encontraron usuarios.</string>
+    <string name="admin_dismiss">Cerrar</string>
+    <string name="admin_role_empty">Ninguno</string>
+    <string name="admin_page_of">%1$d / %2$d</string>
+    <string name="admin_cd_assign_role">Otorgar admin a %s</string>
+    <string name="admin_cd_revoke_role">Revocar admin de %s</string>
 </resources>

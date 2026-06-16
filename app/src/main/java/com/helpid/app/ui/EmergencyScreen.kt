@@ -50,6 +50,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AdminPanelSettings
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Language
@@ -115,7 +116,8 @@ data class EmergencyContact(
 fun EmergencyScreen(
     userId: String,
     onLanguageClick: () -> Unit = {},
-    onMintLink: suspend () -> String = { "" }
+    onMintLink: suspend () -> String = { "" },
+    onAdminClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val repository = remember { FirebaseRepository(context) }
@@ -693,6 +695,22 @@ fun EmergencyScreen(
                         fontSize = 10.sp,
                         color = Color.White.copy(alpha = 0.9f),
                         letterSpacing = 0.3.sp
+                    )
+                }
+            }
+
+            if (onAdminClick != null) {
+                IconButton(
+                    onClick = onAdminClick,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(40.dp)
+                        .background(Color.Transparent, RoundedCornerShape(10.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AdminPanelSettings,
+                        contentDescription = stringResource(R.string.admin_entry_button),
+                        tint = Color.White
                     )
                 }
             }

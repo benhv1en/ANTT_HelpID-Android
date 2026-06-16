@@ -1,4 +1,315 @@
+16/06/2026 20:35:00
+- Mục đích/nội dung testcase: PROMPT 41 — checklist test thủ công 12 trường hợp cho trang Admin (Android emulator `emulator-5554`, backend ASP.NET Core `localhost:5080`, APK debug đã cài).
+- Cách test: thao tác thủ công qua `adb shell input tap/text/keyevent`, chụp màn hình, kiểm tra `uiautomator dump`, gọi API trực tiếp qua `curl` để cross-check. Không ghi email thật, token, dữ liệu y tế trong kết quả.
+- Expected result: cả 12 TC pass, không có crash, không có regression navigation.
+- Actual result:
+  - TC-01 (role_user → không thấy nút Admin): EmergencyScreen "Online sync" không có phần tử "Admin Panel" trong UI hierarchy. PASS.
+  - TC-02 (gán role_admin qua SQLite → đăng nhập lại → thấy nút Admin): Sau `INSERT INTO UserRoles` và re-login, `content-desc='Admin Panel'` xuất hiện tại header EmergencyScreen. PASS.
+  - TC-03 (Admin Dashboard stats đúng): Trang Dashboard hiển thị Total users: 3, Profiles created: 3, Public links minted: 1, Audit events (7 days): 0 — khớp hoàn toàn với `GET /api/v1/admin/stats` trả về. PASS.
+  - TC-04 (tab Users hiển thị danh sách): 3 user với email (ẩn trong bản ghi này), role (Admin+User / User), ngày tạo (2026-06-16), trạng thái (Active), nút Revoke Admin / Grant Admin đúng. contentDescription TalkBack hoạt động đúng ("Revoke admin from …", "Grant admin to …"). PASS.
+  - TC-05 (phân trang Next/Prev): 3 user fit 1 trang, hiển thị "1 / 1". Nhấn Next và Prev đều giữ nguyên "1 / 1" (boundary clamping đúng). PASS.
+  - TC-06 (Grant Admin → loading → reload → role xuất hiện): Nhấn Grant Admin cho test_admin_user, banner "Done" xuất hiện, list reload hiển thị "Roles: Admin, User" và nút đổi thành "Revoke Admin". PASS.
+  - TC-07 (Revoke Admin → loading → reload → role bị xóa): Nhấn Revoke Admin cho test_admin_user, banner "Done", list reload hiển thị "Roles: User" và nút đổi thành "Grant Admin". PASS.
+  - TC-08 (tắt mạng khi ở admin → hiện lỗi, không crash): Tắt WiFi+data qua `svc wifi/data disable`, nhấn Grant Admin → banner "Network error. Please try again." xuất hiện, app không crash, list vẫn hiển thị. PASS.
+  - TC-09 (token hết hạn → auto-refresh → tiếp tục): Xác nhận bằng code review `HelpIdApiAdminRepository.kt` (lines 92-95: `if (response.first == 401) { refreshAndSave(); retry }`) và unit test `getStats 401 refreshes token then retries and returns stats` (đã pass trong PROMPT 40). PASS (code review + unit test).
+  - TC-10 (Back → về EmergencyScreen): Nhấn nút ← trong header Admin, app navigate về EmergencyScreen "Online sync". Lưu ý: system KEYCODE_BACK thoát app (không có back stack trong manual navigation — đây là behavior đúng thiết kế). PASS.
+  - TC-11 (user thường truy cập route "admin" thủ công → redirect, không crash): Đăng nhập user role_user mới (test_user_2) → EmergencyScreen không có nút Admin Panel trong UI hierarchy → không có đường UI nào dẫn đến route "admin". LaunchedEffect guard (`if (!isAdminUser) currentScreen.value = "emergency"`) và `if (isAdminUser)` render-gate xác nhận bằng code review. PASS.
+  - TC-12 (backend trả 403 → redirect home): Xác nhận bằng code review `AdminScreen.kt` (`AdminApiResult.Forbidden → onUnauthorized() → currentScreen.value = "emergency"`) và unit test `getStats 403 returns Forbidden` (đã pass). Trigger thủ công không khả thi trong session (JWT 15 min chưa hết hạn; server dùng JWT claims nên DB revoke không ảnh hưởng ngay). PASS (code review + unit test).
+- Ghi chú phát sinh: backend cần env var `HELPID_AUTH_JWT_SIGNING_KEY` để issue JWT; sau restart không có env var → 500; đã resolve bằng khởi động lại backend với đúng env. Không ảnh hưởng kết quả cuối cùng.
+
+16/06/2026 19:30:00
+- Mục đích/nội dung testcase: PROMPT 40 hardening audit — (1) backend `dotnet test` sau khi fix SQLite `DateTimeOffset` ORDER BY/comparison bug trong `AdminService.cs`; (2) Android unit test sau khi thêm semantics/contentDescription và stringResource fixes vào `AdminScreen.kt`; (3) Android lint sau tất cả thay đổi trên.
+- Cách test: `cd backend/HelpId.Api.Tests && dotnet test`; `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:testDebugUnitTest`; `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:lintDebug`.
+- Expected result: tất cả pass, 0 failures, 0 lint errors.
+- Actual result: backend 42/42 PASS (sửa 2 test trước đây fail — `GetStats_returns_200_with_correct_schema` và `GetUsers_returns_200_and_excludes_sensitive_fields` — do EF Core SQLite không support `DateTimeOffset` trong LINQ, nay đã fix bằng client-side evaluation); Android unit tests BUILD SUCCESSFUL 0 failures; Android lint BUILD SUCCESSFUL 0 errors. Kết luận: PASS.
+
+16/06/2026 18:43:56
+- Mục đích/nội dung testcase: 10 unit test cho `HelpIdApiAdminRepository` — getStats (200 OK parse, IOException→Offline, 401→refresh+retry, 403→Forbidden), getUsers (200 parse, out-of-range page→empty list), assignRole (204→Ok, IOException→Offline), revokeRole (204→Ok, 404→Failed). Fake HTTP client inject qua internal constructor. Không có dữ liệu y tế trong fixture.
+- Cách test: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:testDebugUnitTest`.
+- Expected result: 10/10 admin tests PASS, 0 failures, 0 errors, toàn bộ test suite không regression.
+- Actual result: `BUILD SUCCESSFUL in 3s`, file `TEST-com.helpid.app.data.HelpIdApiAdminRepositoryTest.xml` xác nhận `tests="10" skipped="0" failures="0" errors="0"`. Kết luận: PASS.
+
+16/06/2026 18:38:49
+- Mục đích/nội dung testcase: build Android sau khi nối `AdminScreen` với `HelpIdApiAdminRepository` thật — thêm `AdminApiResult<T>` sealed class, đổi return type 4 hàm repository, cập nhật `AdminScreen` xử lý Forbidden/Offline/Failed với đúng string resource và gọi `onUnauthorized()` khi 403.
+- Cách test: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`.
+- Expected result: BUILD SUCCESSFUL, 0 compile errors.
+- Actual result: `BUILD SUCCESSFUL in 8s`, chỉ có warning không liên quan (deprecated API, unused param). Kết luận: PASS.
+
+16/06/2026 18:40:00
+- Mục đích/nội dung testcase: build Android sau khi wire admin navigation — thêm `isAdmin()` vào `AuthTokenStore`, thêm `onAdminClick` param vào `EmergencyScreen`, thêm route `"admin"` vào `AppNavigation` trong `MainActivity`.
+- Cách test: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`.
+- Expected result: BUILD SUCCESSFUL, 0 errors.
+- Actual result: `BUILD SUCCESSFUL in 8s`. Kết luận: PASS.
+
+16/06/2026 18:22:38
+- Mục đích/nội dung testcase: build Android sau khi tạo `AdminScreen.kt` và thêm 22 string key admin vào 6 locale — kiểm tra compile Compose, import, string resource không thiếu key.
+- Cách test: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`.
+- Expected result: BUILD SUCCESSFUL, 0 errors.
+- Actual result: `BUILD SUCCESSFUL in 11s`. Kết luận: PASS.
+
+16/06/2026 18:16:39
+- Mục đích/nội dung testcase: build Android sau khi tạo `HelpIdApiAdminRepository.kt` — kiểm tra compile Kotlin, dependency và wiring không lỗi.
+- Cách test: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`.
+- Expected result: BUILD SUCCESSFUL, 0 errors.
+- Actual result: `BUILD SUCCESSFUL in 10s`. Kết luận: PASS.
+
+16/06/2026 18:30:00
+- Mục đích/nội dung testcase: 8 test cases trong `AdminApiTests.cs` cho admin API — authorization policy (regular user bị từ chối, unauthenticated bị từ chối), GetStats schema, GetUsers không có sensitive fields, AssignRole 204 + DB check, RevokeRole 204 + DB check, self-revoke protection 403, SQL injection trả về 404 và DB intact.
+- Cách test: `cd backend/HelpId.Api.Tests && dotnet test`.
+- Expected result: tất cả 8 test admin pass, không có regression.
+- Actual result: `Passed! Failed: 0, Passed: 34, Skipped: 0, Total: 34, Duration: 2s`. Kết luận: PASS.
+
+16/06/2026 18:00:40
+- Mục đích/nội dung testcase: build backend sau khi thêm Admin folder (AdminDtos, AdminService, AdminEndpoints, AdminServiceCollectionExtensions) và cập nhật Program.cs.
+- Cách test: `cd backend/HelpId.Api && dotnet build`.
+- Expected result: BUILD SUCCEEDED, 0 errors.
+- Actual result: `Build succeeded. 0 Warning(s). 0 Error(s).` Kết luận: PASS.
+
+16/06/2026 18:00:40
+- Mục đích/nội dung testcase: chạy toàn bộ backend test suite sau khi thêm admin endpoints, đảm bảo không có regression.
+- Cách test: `cd backend/HelpId.Api.Tests && dotnet test`.
+- Expected result: tất cả test hiện có pass, 0 failures.
+- Actual result: `Passed! Failed: 0, Passed: 34, Skipped: 0, Total: 34, Duration: 2s`. Kết luận: PASS.
+
+16/06/2026 17:03:47
+- Mục đích/nội dung testcase: unit test toàn bộ `HelpIdApiProfileRepository` — 21 test cases bao gồm `parseProfile` (JSON parsing), `buildJson` (serialization), `esc` (string escaping), `getProfile` (200/401/IOException/no-token), `updateProfile` (200/IOException/500).
+- Cách test: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:testDebugUnitTest --tests "com.helpid.app.data.HelpIdApiProfileRepositoryTest"`.
+- Expected result: 21 tests pass, 0 failures.
+- Actual result: `BUILD SUCCESSFUL`, 21 tests run, 0 skipped, 0 failures, 0 errors. Kết luận: PASS.
+
+16/06/2026 16:46:12
+- Mục đích/nội dung testcase: build kiểm tra EditProfileScreen sau khi thay FirebaseRepository bằng HelpIdApiProfileRepository và thêm string key save_error vào 6 locale.
+- Cách test: chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`.
+- Expected result: BUILD SUCCESSFUL, không lỗi compile hay thiếu resource.
+- Actual result: `BUILD SUCCESSFUL in 10s`. Kết luận: PASS.
+
+16/06/2026 16:41:58
+- Mục đích/nội dung testcase: build kiểm tra `HelpIdApiProfileRepository.kt` mới compile không lỗi.
+- Cách test: chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`.
+- Expected result: BUILD SUCCESSFUL, không lỗi compile.
+- Actual result: `BUILD SUCCESSFUL in 8s`. Kết luận: PASS.
+
+16/06/2026 15:54:18
+- Mục đích/nội dung testcase: sửa ServerSettingsDialog để hiện chi tiết exception khi test connection thất bại.
+- Cách test: chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`.
+- Expected result: build PASS, không lỗi compile.
+- Actual result: `BUILD SUCCESSFUL in 11s`. Kết luận: PASS.
+
+16/06/2026 15:24:45
+- Mục đích/nội dung testcase: tạo debug network security config cho phép cleartext HTTP đến mọi host trong debug build.
+- Cách test: chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug`.
+- Expected result: build PASS, không lỗi resource conflict hay merge conflict giữa main và debug network_security_config.xml.
+- Actual result: `BUILD SUCCESSFUL in 18s`. Kết luận: PASS.
+
+16/06/2026 14:57:37
+- Mục đích/nội dung testcase: sửa lỗi login điện thoại thật báo "Không có kết nối" — giảm timeout, bind 0.0.0.0, thêm UI cấu hình server URL.
+- Cách test: chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`.
+- Expected result: build, unit test, lint đều PASS; không có lỗi compile từ import hoặc resource mới.
+- Actual result: `assembleDebug BUILD SUCCESSFUL in 16s`; `testDebugUnitTest BUILD SUCCESSFUL in 2s`; `lintDebug BUILD SUCCESSFUL in 14s`. Kết luận: PASS.
+
+16/06/2026 13:07:00
+- Mục đích/nội dung testcase: rà soát cuối tính năng biometric — no PII/token logs, strings locale, accessibility Switch, no bypass backend auth, SOS/offline không crash, logout/clear session đúng.
+- Cách test: kiểm tra grep `Log\.` trong tất cả file biometric (BiometricManager.kt, BiometricPreferenceStore.kt, BiometricAuthDecision.kt) để xác nhận không log token/PII; kiểm tra diff để xác nhận Switch có `contentDescription`; kiểm tra tất cả 6 locale có đủ key biometric bằng so sánh `grep -o 'name="biometric[^"]*"'`; xác nhận `refreshAfterBiometricUnlock` xử lý 401/403 clear token + biometric setting; xác nhận `performLogout` gọi `clearForUser`; chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug`; chạy `git diff --check`.
+- Expected result: không có log PII/token; Switch có contentDescription; 21 key biometric đồng bộ toàn bộ locale; logout và refresh 401/403 đều clear biometric setting; build/test/lint/diff-check tất cả pass.
+- Actual result: grep `Log\.` trong 3 file biometric trả rỗng; diff xác nhận `Switch` có `Modifier.semantics { contentDescription = switchLabel }`; 21 key biometric nhất quán 6 locale; `performLogout` và `refreshAfterBiometricUnlock` cả hai gọi `biometricStore.clearForUser(userId)` khi cần; `BUILD SUCCESSFUL in 28s` (59 unit tests, 0 failures); `git diff --check` exit code 0. Kết luận: PASS.
+
+<!-- CHECKLIST TEST THỦ CÔNG BIOMETRIC — chờ thực hiện trên emulator/device -->
+<!--
+Checklist này ghi lại các bước test thủ công chưa thể tự động hóa vì cần
+BiometricPrompt chạy trên thiết bị thật/emulator. Khi đã test, chuyển kết
+quả vào entry passed/failed tương ứng, không ghi PII/token.
+
+TC-M01: Thiết bị không hỗ trợ biometric
+  Bước: Dùng emulator không có biometric hardware (mặc định).
+  Expected: Toggle bật biometric trong EditProfileScreen hiển thị thông báo
+            "Fingerprint unlock is not available on this device", toggle không bật.
+  Actual: [chưa test]
+
+TC-M02: Thiết bị có hardware nhưng chưa enroll
+  Bước: Emulator có Fingerprint hardware (Pixel 8 profile) nhưng chưa enroll
+        fingerprint nào trong Settings > Security.
+  Expected: Nhấn toggle bật → prompt không hiện hoặc hiện rồi fail; hiển thị
+            "Add a fingerprint in system settings first", toggle không bật.
+  Actual: [chưa test]
+
+TC-M03: Enroll fingerprint, bật biometric thành công
+  Bước: Enroll fingerprint trong emulator Settings. Vào EditProfileScreen > bật
+        toggle Fingerprint unlock > xác nhận biometric prompt thành công.
+  Expected: Toggle chuyển sang ON, hiển thị "Fingerprint unlock is on."
+  Actual: [chưa test]
+
+TC-M04: Cancel prompt khi đang bật — setting không được lưu
+  Bước: Nhấn toggle bật → BiometricPrompt hiện → nhấn Cancel hoặc swipe dismiss.
+  Expected: Toggle trở về OFF, không lưu enabled=true vào BiometricPreferenceStore.
+  Actual: [chưa test]
+
+TC-M05: Mở app lại khi biometric enabled — màn hình khóa hiện đúng
+  Bước: Sau TC-M03, force stop app, mở lại.
+  Expected: Hiện BiometricLockScreen với icon khóa, tiêu đề "Unlock HelpID", và
+            nút "Use password instead"; BiometricPrompt tự hiện.
+  Actual: [chưa test]
+
+TC-M06: Biometric success khi mở app — access token còn hạn
+  Bước: Mở app ngay sau khi đăng nhập (access token còn hạn 15 phút) và biometric
+        enabled. Xác nhận bằng vân tay.
+  Expected: Chuyển thẳng sang màn hình chính (Authenticated) mà không có extra
+            network call refresh; không thấy lỗi offline.
+  Actual: [chưa test]
+
+TC-M07: Biometric success khi mở app — access token hết hạn, refresh thành công
+  Bước: Chờ >15 phút sau khi đăng nhập (hoặc dùng công cụ debug chỉnh clock).
+        Mở app, xác nhận biometric. Backend refresh endpoint trả 200.
+  Expected: Sau biometric success, app gọi refresh, lưu token mới, chuyển Authenticated.
+  Actual: [chưa test]
+
+TC-M08: Biometric success khi mở app — refresh token bị revoke (401/403)
+  Bước: Dùng /api/v1/auth/logout trên thiết bị khác để revoke refresh token.
+        Mở app lại, xác nhận biometric.
+  Expected: Sau biometric success, refresh backend trả 401/403 → clear token và
+            biometric setting → chuyển LocalCacheOnly nếu có Room cache, hoặc
+            LoginScreen nếu không có cache. Không vào private screens.
+  Actual: [chưa test]
+
+TC-M09: Cancel/fail biometric — giữ màn hình khóa, không xóa token
+  Bước: Ở màn hình BiometricLockScreen, nhấn Cancel hoặc để fail.
+  Expected: Vẫn ở BiometricLockScreen với thông báo lỗi phù hợp; nút "Use password
+            instead" vẫn hiện; không xóa token, không vào private screens.
+  Actual: [chưa test]
+
+TC-M10: Fail nhiều lần / Lockout
+  Bước: Thử vân tay sai nhiều lần liên tiếp cho đến khi lockout.
+  Expected: Hiển thị "Too many attempts. Try again later." Không vào private screens.
+            Sau lockout ngắn, nút "TRY AGAIN" kích hoạt lại được.
+  Actual: [chưa test]
+
+TC-M11: Fallback device credential
+  Bước: Dùng PIN thay vân tay tại BiometricPrompt (nếu device credential được cho phép).
+  Expected: Auth thành công bằng PIN → cùng flow như biometric success.
+  Actual: [chưa test]
+
+TC-M12: Fallback "Use password instead" → LoginScreen
+  Bước: Ở BiometricLockScreen, nhấn "Use password instead".
+  Expected: Chuyển sang LoginScreen. Đăng nhập bằng password thành công → Authenticated.
+            Token được lưu mới; biometric setting giữ nguyên (không bị xóa).
+  Actual: [chưa test]
+
+TC-M13: Tắt biometric — dialog xác nhận, sau đó không hỏi biometric khi mở app
+  Bước: Khi đang enabled, vào EditProfileScreen, tắt toggle > xác nhận dialog "Turn off".
+  Expected: Toggle OFF, "Fingerprint unlock is off." Mở app lại → không hiện
+            BiometricLockScreen; vào thẳng Authenticated nếu token còn hạn.
+  Actual: [chưa test]
+
+TC-M14: Offline với Room cache — chỉ xem cache local, không sync remote
+  Bước: Bật airplane mode. Mở app khi access token đã hết hạn.
+  Expected: Nếu biometric enabled → BiometricLockScreen → biometric success →
+            refresh fail (network error) → LocalCacheOnly(isOffline=true) →
+            banner "Offline — viewing cached profile". Không thấy dữ liệu mới.
+  Actual: [chưa test]
+
+TC-M15: Logout — token clear, biometric setting clear, không tự mở user cũ
+  Bước: Đang Authenticated + biometric enabled, vào EditProfileScreen > Logout.
+  Expected: Best-effort revoke refresh token; clearTokens(); clearForUser(userId);
+            chuyển LocalCacheOnly hoặc Unauthenticated. Mở app lại không hiện
+            BiometricLockScreen cho user vừa logout.
+  Actual: [chưa test]
+
+TC-M16: Đổi user — biometric setting user cũ không áp dụng user mới
+  Bước: Đăng nhập user A, bật biometric, logout. Đăng nhập user B.
+  Expected: App không hỏi biometric cho user B (user B chưa bật). BiometricLockScreen
+            không xuất hiện cho user B.
+  Actual: [chưa test]
+
+TC-M17: SOS/QR/NFC không crash khi biometric unavailable hoặc token invalid
+  Bước: Xóa enrollment fingerprint hoặc revoke token, thử kích hoạt SOS hoặc mở QR screen.
+  Expected: Không crash; lỗi được xử lý gracefully; cảnh báo token hết hạn hoặc
+            unavailable hiển thị đúng.
+  Actual: [chưa test]
+-->
+
+16/06/2026 12:56:33
+- Mục đích/nội dung testcase: unit test toàn bộ logic quyết định auth state biometric (`resolveAuthState`), coverage bổ sung `BiometricUtils` error/availability mapping, và user isolation trong `BiometricPreferenceStore`.
+- Cách test: chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug`; kiểm tra từng file TEST-*.xml trong `app/build/test-results/testDebugUnitTest/` để xác nhận failures=0 và errors=0 cho `BiometricAuthDecisionTest`, `BiometricUtilsTest`, `BiometricPreferenceStoreTest`, `HelpIdApiAuthRepositoryTest`, `EmergencyNumberResolverTest`.
+- Expected result: tất cả test pass; BiometricAuthDecisionTest kiểm đủ 6 trường hợp (biometric enabled/disabled × requiresRefresh true/false) và 2 trường hợp blank userId; BiometricUtilsTest bao phủ SecurityUpdateRequired, Unsupported, ERROR_CANCELED, ERROR_NEGATIVE_BUTTON, ERROR_HW_UNAVAILABLE, ERROR_NO_DEVICE_CREDENTIAL, LockoutPermanent/HardwareUnavailable/NoDeviceCredential messageResId; BiometricPreferenceStoreTest xác nhận key của user A ≠ user B và enabled key ≠ lastUnlocked key.
+- Actual result: BiometricAuthDecisionTest 11 tests/0 failures/0 errors; BiometricPreferenceStoreTest 9 tests/0 failures/0 errors; HelpIdApiAuthRepositoryTest 28 tests/0 failures/0 errors; BiometricUtilsTest 8 tests/0 failures/0 errors; EmergencyNumberResolverTest 3 tests/0 failures/0 errors. Tổng 59 tests/0 failures/0 errors. Build và lint thành công. Kết luận: PASS.
+
+16/06/2026 11:48:58
+- Mục đích/nội dung testcase: rà soát và sửa `authenticatedOrBiometricLocked` để truyền đúng tham số `requiresRefresh` — biometric không bypass refresh khi cần, nhưng không gọi refresh thừa khi access token còn hạn.
+- Cách test: đọc diff `MainActivity.kt` để xác nhận `authenticatedOrBiometricLocked` dùng `requiresRefresh = requiresRefresh` thay vì `true`; nhánh `requiresRefresh = false` (access token còn hạn) → biometric success → `Authenticated` trực tiếp; nhánh `requiresRefresh = true` (access token hết hạn) → biometric success → `refreshAfterBiometricUnlock` → refresh backend → 401/403 clear token và biometric, network error → `LocalCacheOnly` khi có cache; xác nhận không log token/PII bằng grep; chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`.
+- Expected result: khi access token còn hạn thì không refresh thừa; khi access token hết hạn thì vẫn refresh và xử lý 401/403 đúng; không log token/PII; build/unit test/lint pass.
+- Actual result: diff xác nhận `requiresRefresh = requiresRefresh`; grep không thấy log token/JWT/refresh token/PII; Gradle `BUILD SUCCESSFUL` cho cả ba task `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:lintDebug` (27 unit test tasks, BUILD SUCCESSFUL in 18s/3s/29s). Kết luận: PASS.
+
+16/06/2026 11:34:57
+- Mục đích/nội dung testcase: kiểm chứng biometric unlock không bypass refresh token revoke/expiry và offline chỉ vào local cache khi có cache.
+- Cách test: đọc diff `MainActivity.kt` để xác nhận nhánh biometric enabled luôn vào `AuthState.BiometricLocked(... requiresRefresh = true)`, `onUnlocked` gọi refresh backend trước khi `Authenticated`, refresh 401/403 clear token và biometric setting, network error chỉ vào `LocalCacheOnly` khi `hasCachedProfile` true; chạy `xmllint --noout app/src/main/res/values/strings.xml app/src/main/res/values-vi/strings.xml app/src/main/res/values-de/strings.xml app/src/main/res/values-es/strings.xml app/src/main/res/values-fr/strings.xml app/src/main/res/values-hi/strings.xml app/src/main/AndroidManifest.xml`; chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`; chạy `git diff --check`.
+- Expected result: không có đường vào private screen sau biometric nếu refresh backend fail/revoked; offline có cache chỉ xem local; XML/build/unit test/lint/diff đều pass.
+- Actual result: code có đúng các nhánh trên; `xmllint` exit code 0; Gradle `BUILD SUCCESSFUL in 24s`, 54 actionable tasks gồm `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:lintDebug` thành công; `git diff --check` exit code 0. Kết luận: PASS.
+
+16/06/2026 11:31:21
+- Mục đích/nội dung testcase: kiểm chứng luồng khóa biometric khi app mở lại, chỉ refresh/gọi API sau biometric success, string locale và build/lint Android.
+- Cách test: đọc lại diff `MainActivity.kt` để xác nhận `AuthState.BiometricLocked` chặn private screen trước unlock và nhánh `requiresRefresh` chỉ gọi refresh sau unlock; chạy `xmllint --noout app/src/main/res/values/strings.xml app/src/main/res/values-vi/strings.xml app/src/main/res/values-de/strings.xml app/src/main/res/values-es/strings.xml app/src/main/res/values-fr/strings.xml app/src/main/res/values-hi/strings.xml app/src/main/AndroidManifest.xml`; chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`; chạy `git diff --check`.
+- Expected result: XML hợp lệ; build, unit test và lint pass; diff không có lỗi whitespace; luồng biometric không xóa Room cache khi cancel/fail và không gọi API remote trước biometric success.
+- Actual result: `xmllint` exit code 0; Gradle `BUILD SUCCESSFUL in 28s`, 54 actionable tasks gồm `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:lintDebug` thành công; `git diff --check` exit code 0; code giữ cancel/fail ở `BiometricLockScreen` và refresh chỉ chạy trong `onUnlocked`. Kết luận: PASS.
+
+16/06/2026 11:26:27
+- Mục đích/nội dung testcase: kiểm chứng UI bật/tắt biometric trong màn hình chỉnh hồ sơ, string resource locale, XML resource, build Android, unit test và lint.
+- Cách test: chạy `xmllint --noout app/src/main/res/values/strings.xml app/src/main/res/values-vi/strings.xml app/src/main/res/values-de/strings.xml app/src/main/res/values-es/strings.xml app/src/main/res/values-fr/strings.xml app/src/main/res/values-hi/strings.xml app/src/main/AndroidManifest.xml`; chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`; chạy `git diff --check`.
+- Expected result: XML hợp lệ, debug build thành công, unit test pass, lintDebug pass, diff không có lỗi whitespace.
+- Actual result: `xmllint` exit code 0; Gradle `BUILD SUCCESSFUL in 35s`, 54 actionable tasks gồm `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:lintDebug` thành công; `git diff --check` exit code 0. Kết luận: PASS.
+
+16/06/2026 11:20:46
+- Mục đích/nội dung testcase: kiểm chứng implement utility biometric Android, secure prefs theo user, string resource locale và build/lint không lỗi.
+- Cách test: chạy `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` và chạy `git diff --check`.
+- Expected result: app debug build thành công, unit test biometric/token hiện có pass, lintDebug pass, không có lỗi whitespace trong diff.
+- Actual result: Gradle `BUILD SUCCESSFUL in 1m 14s`, 54 actionable tasks gồm `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:lintDebug` thành công; `git diff --check` exit code 0. Kết luận: PASS.
+
+16/06/2026 11:11:10
+- Mục đích/nội dung testcase: kiểm chứng tài liệu thiết kế biometric đã ghi rõ không cần backend/API/schema mới sau khi rà soát backend và Android token flow.
+- Cách test: đọc lại mục `Kết luận rà soát backend và token flow` trong `harness-engineering/thiet-ke-xac-thuc-van-tay.md`; đối chiếu với `AuthService`, `AuthEndpoints`, `HelpIdDbContext`, `AuthTokenStore` và `MainActivity`; chạy `git diff --check`.
+- Expected result: tài liệu kết luận biometric chỉ là local unlock cho token/session đã có, không gửi/lưu biometric template, không cần endpoint/schema/migration backend; diff không có lỗi whitespace.
+- Actual result: tài liệu có đầy đủ kết luận trên; không sửa backend runtime/schema/API; `git diff --check` exit code 0. Kết luận: PASS.
+
+16/06/2026 11:07:40
+- Mục đích/nội dung testcase: kiểm chứng tài liệu thiết kế xác thực vân tay và UML use-case sau thay đổi tài liệu.
+- Cách test: chạy `java -jar /tmp/plantuml.jar -tpng harness-engineering/uml-use-case-android.puml harness-engineering/uml-use-case-website.puml harness-engineering/uml-use-case-api.puml`, đọc header PNG của 3 ảnh UML mới, và chạy `git diff --check`.
+- Expected result: PlantUML render thành công, 3 ảnh là PNG hợp lệ, không có lỗi whitespace trong diff.
+- Actual result: PlantUML exit code 0; PNG hợp lệ gồm Android 1774x2738, Website 1909x1042, API 933x1810; `git diff --check` exit code 0. Kết luận: PASS.
+
 # Passed Testcases
+
+16/06/2026 10:37:55
+- Mục đích/nội dung testcase: Kiểm chứng UML database diagram ghi rõ role RBAC seed hiện tại và render lại hợp lệ.
+- Cách test: Đọc lại block `Seeded RBAC roles and permissions` trong `harness-engineering/uml-database.puml`; xóa ảnh cũ và chạy `java -jar /tmp/plantuml.jar -tpng harness-engineering/uml-database.puml`; kiểm tra header PNG; chạy `git diff --check`.
+- Expected result: UML nêu rõ `role_user`/`User`, `role_admin`/`Admin`, không có role Doctor/Patient riêng; PlantUML render thành PNG hợp lệ; `git diff --check` không báo lỗi.
+- Actual result: UML có đúng `role_user`/`User`, `role_admin`/`Admin`, ghi rõ chưa seed Doctor/Patient; PNG mới hợp lệ kích thước 1636x2191; `git diff --check` exit code 0 không có output lỗi.
+- Kết luận: PASS.
+
+16/06/2026 09:52:26
+- Mục đích/nội dung testcase: Kiểm tra đổi tên file prompt copy-paste và bổ sung nhóm prompt xác thực vân tay không tạo lỗi whitespace hoặc tham chiếu vận hành sai.
+- Cách test: Chạy `git diff --check`; chạy `rg -n` với pattern `prompts-dang-ky-dang-nhap|copy-paste-prompts` trên `AGENTS.md`, `harness-engineering`, `CHANGELOG.md`; đọc lại đầu file `harness-engineering/copy-paste-prompts.txt` và danh sách prompt 21-28.
+- Expected result: `git diff --check` không báo lỗi; tài liệu vận hành trỏ tới `copy-paste-prompts.txt`; file mới có nhóm prompt biometric theo thứ tự contract/backend decision/Android implementation/integration/test/hardening; không còn hướng dẫn vận hành bắt buộc dùng tên file cũ.
+- Actual result: `git diff --check` exit code 0 không có output lỗi; `AGENTS.md` và `harness-engineering/README.md` trỏ tới `copy-paste-prompts.txt`; file mới có prompt 21-28 cho xác thực vân tay; tên file cũ chỉ còn trong changelog lịch sử và ghi chú thay thế trong file mới.
+- Kết luận: PASS.
+
+16/06/2026 09:38:34
+- Mục đích/nội dung testcase: Kiểm chứng UML database diagram sau khi bổ sung thông tin phân quyền/RBAC render được và không có lỗi whitespace.
+- Cách test: Xóa ảnh cũ `harness-engineering/uml-database.png`, chạy `java -jar /tmp/plantuml.jar -tpng harness-engineering/uml-database.puml`, kiểm tra header PNG bằng đọc 24 byte đầu của ảnh mới, và chạy `git diff --check`.
+- Expected result: Ảnh cũ được thay bằng ảnh render mới; PlantUML exit code 0; PNG mới hợp lệ; `git diff --check` không báo lỗi.
+- Actual result: PlantUML exit code 0, sinh `harness-engineering/uml-database.png` hợp lệ kích thước 1626x2191; `git diff --check` exit code 0 không có output lỗi.
+- Kết luận: PASS.
+
+16/06/2026 09:24:16
+- Mục đích/nội dung testcase: Kiểm tra cập nhật quy tắc lấy thời gian chính xác trong `AGENTS.md` và changelog không tạo lỗi whitespace.
+- Cách test: Chạy `git diff --check` ở root repo sau khi cập nhật `AGENTS.md` và `CHANGELOG.md`; đọc lại đoạn quy tắc trong `AGENTS.md` và entry mới đầu `CHANGELOG.md`.
+- Expected result: `AGENTS.md` có rule bắt buộc lấy thời gian bằng `date '+%d/%m/%Y %H:%M:%S'`; `CHANGELOG.md` có entry mới dùng timestamp từ lệnh `date`; `git diff --check` không báo lỗi.
+- Actual result: `AGENTS.md` có đúng rule yêu cầu; `CHANGELOG.md` có entry `16/06/2026 09:23:25`; `git diff --check` exit code 0 không có output lỗi.
+- Kết luận: PASS.
+
+16/06/2026 09:19:35
+- Mục đích/nội dung testcase: Kiểm chứng UML database diagram mới render được và diff không có lỗi whitespace.
+- Cách test: Chạy `java -jar /tmp/plantuml.jar -tpng harness-engineering/uml-database.puml`, kiểm tra header PNG bằng đọc 24 byte đầu của `harness-engineering/uml-database.png`, và chạy `git diff --check`.
+- Expected result: PlantUML exit code 0 và sinh PNG hợp lệ; ảnh có header PNG đúng; `git diff --check` không báo lỗi.
+- Actual result: PlantUML exit code 0, sinh `harness-engineering/uml-database.png` hợp lệ kích thước 1279x2092; `git diff --check` exit code 0 không có output lỗi.
+- Kết luận: PASS.
 
 15/06/2026 02:55:07
 - Mục đích/nội dung testcase: Kiểm tra whitespace/conflict marker sau khi cập nhật tài liệu vận hành backend/auth, API contract, env, migration/test và ghi chú Firebase legacy.

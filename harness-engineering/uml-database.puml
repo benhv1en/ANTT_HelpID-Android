@@ -1,0 +1,254 @@
+@startuml
+title UML database diagram - HelpID
+
+left to right direction
+hide methods
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+package "Backend SQLite (HelpId.Api / EF Core code-first)" as BackendDb {
+  class "Users" as BackendUsers <<table>> {
+    +Id: TEXT(64) [PK]
+    +Email: TEXT(254) [required]
+    +NormalizedEmail: TEXT(254) [unique, required]
+    +PasswordHash: TEXT(512) [required]
+    +DisplayName: TEXT(80) [nullable]
+    +PhoneNumber: TEXT(16) [nullable]
+    +IsEmailVerified: INTEGER [default false]
+    +FailedLoginCount: INTEGER [default 0]
+    +LockoutUntilUtc: TEXT [nullable]
+    +SecurityStamp: TEXT(64) [required]
+    +CreatedAtUtc: TEXT [required]
+    +UpdatedAtUtc: TEXT [required]
+    +LastLoginAtUtc: TEXT [nullable]
+    +DeletedAtUtc: TEXT [nullable, indexed]
+  }
+
+  class "RefreshTokens" as BackendRefreshTokens <<table>> {
+    +Id: TEXT(64) [PK]
+    +UserId: TEXT(64) [FK, required]
+    +TokenHash: TEXT(128) [unique, required]
+    +TokenFamilyId: TEXT(64) [indexed, required]
+    +CreatedAtUtc: TEXT [required]
+    +ExpiresAtUtc: TEXT [indexed, required]
+    +RevokedAtUtc: TEXT [nullable]
+    +ReplacedByTokenId: TEXT(64) [FK, nullable]
+    +DeviceName: TEXT(120) [nullable]
+    +UserAgentHash: TEXT(128) [nullable]
+    +CreatedByIpHash: TEXT(128) [nullable]
+  }
+
+  class "UserProfiles" as BackendUserProfiles <<table>> {
+    +UserId: TEXT(64) [PK, FK]
+    +FullName: TEXT(80) [required, default ""]
+    +BloodGroup: TEXT(3) [required, default ""]
+    +Address: TEXT(120) [required, default ""]
+    +Language: TEXT(8) [required, default "en"]
+    +CreatedAtUtc: TEXT [required]
+    +UpdatedAtUtc: TEXT [required]
+    +LastUpdatedUtc: TEXT [required]
+  }
+
+  class "ProfileAllergies" as BackendProfileAllergies <<table>> {
+    +Id: TEXT(64) [PK]
+    +UserId: TEXT(64) [FK, required]
+    +Value: TEXT(120) [required]
+    +SortOrder: INTEGER [indexed with UserId, default 0]
+    +CreatedAtUtc: TEXT [required]
+    +UpdatedAtUtc: TEXT [required]
+  }
+
+  class "MedicalNotes" as BackendMedicalNotes <<table>> {
+    +Id: TEXT(64) [PK]
+    +UserId: TEXT(64) [FK, required]
+    +Value: TEXT(500) [required]
+    +SortOrder: INTEGER [indexed with UserId, default 0]
+    +CreatedAtUtc: TEXT [required]
+    +UpdatedAtUtc: TEXT [required]
+  }
+
+  class "EmergencyContacts" as BackendEmergencyContacts <<table>> {
+    +Id: TEXT(64) [PK]
+    +UserId: TEXT(64) [FK, required]
+    +Name: TEXT(80) [required]
+    +Phone: TEXT(16) [required]
+    +Relationship: TEXT(80) [nullable]
+    +SortOrder: INTEGER [indexed with UserId, default 0]
+    +CreatedAtUtc: TEXT [required]
+    +UpdatedAtUtc: TEXT [required]
+  }
+
+  class "PublicProfileLinks" as BackendPublicProfileLinks <<table>> {
+    +PublicKey: TEXT(68) [PK]
+    +UserId: TEXT(64) [FK, indexed, required]
+    +CreatedAtUtc: TEXT [required]
+    +UpdatedAtUtc: TEXT [required]
+    +LastMintedAtUtc: TEXT [nullable]
+    +RevokedAtUtc: TEXT [nullable]
+  }
+
+  class "AuditEvents" as BackendAuditEvents <<table>> {
+    +Id: TEXT(64) [PK]
+    +UserId: TEXT(64) [FK, nullable]
+    +EventType: TEXT(80) [indexed with CreatedAtUtc, required]
+    +ReasonCode: TEXT(80) [nullable]
+    +Success: INTEGER [required]
+    +CreatedAtUtc: TEXT [indexed, required]
+    +IpHash: TEXT(128) [nullable]
+    +UserAgentHash: TEXT(128) [nullable]
+  }
+
+  class "Roles" as BackendRoles <<table>> {
+    +Id: TEXT(64) [PK]
+    +Name: TEXT(64) [required]
+    +NormalizedName: TEXT(64) [unique, required]
+    +CreatedAtUtc: TEXT [required]
+  }
+
+  class "Permissions" as BackendPermissions <<table>> {
+    +Id: TEXT(64) [PK]
+    +Code: TEXT(120) [unique, required]
+    +Description: TEXT(240) [nullable]
+    +CreatedAtUtc: TEXT [required]
+  }
+
+  class "UserRoles" as BackendUserRoles <<join table>> {
+    +UserId: TEXT(64) [PK, FK]
+    +RoleId: TEXT(64) [PK, FK, indexed]
+    +AssignedAtUtc: TEXT [required]
+  }
+
+  class "RolePermissions" as BackendRolePermissions <<join table>> {
+    +RoleId: TEXT(64) [PK, FK]
+    +PermissionId: TEXT(64) [PK, FK, indexed]
+    +GrantedAtUtc: TEXT [required]
+  }
+
+  class "Seeded RBAC roles and permissions" as BackendSeededRbac <<authorization seed>> {
+    +role_user / User: app user, profile owner
+    +role_admin / Admin: system administrator
+    +No Doctor role is seeded
+    +No Patient role is seeded separately
+    +User grants:
+    +  profile:read:self
+    +  profile:write:self
+    +  emergency_link:mint:self
+    +  auth:session:self
+    +Admin grants:
+    +  profile:read:self
+    +  profile:write:self
+    +  emergency_link:mint:self
+    +  auth:session:self
+    +  admin:metadata:read
+  }
+
+  class "JWT authorization claims" as BackendJwtClaims <<application authorization>> {
+    +sub: user id
+    +role: role names from UserRoles
+    +permission: codes from RolePermissions
+    +Policies enforce permission claims
+    +Ownership uses current JWT subject
+  }
+
+  class "Public profile access" as BackendPublicAccess <<application authorization>> {
+    +Requires PublicProfileLinks.PublicKey
+    +Requires public profile JWT <= 3h
+    +Rejects RevokedAtUtc links
+    +Returns whitelist only
+  }
+}
+
+package "Android Room (helpid_database)" as RoomDb {
+  class "user_profile" as RoomUserProfile <<table>> {
+    +userId: TEXT [PK]
+    +name: TEXT
+    +bloodGroup: TEXT
+    +address: TEXT [added in migration 1 -> 2]
+    +allergies: TEXT [JSON List<String>, added in migration 1 -> 2]
+    +medicalNotes: TEXT [JSON List<String>]
+    +emergencyContacts: TEXT [JSON List<LocalEmergencyContact>]
+    +language: TEXT
+    +lastUpdated: INTEGER
+  }
+
+  class "LocalEmergencyContact" as RoomEmergencyContact <<value object>> {
+    +name: String
+    +phone: String
+  }
+}
+
+package "Firestore legacy collections" as FirestoreDb {
+  class "users/{uid}" as FirestoreUsers <<document>> {
+    +userId: string
+    +name: string
+    +bloodGroup: string
+    +address: string
+    +allergies: string[]
+    +medicalNotes: string[]
+    +emergencyContacts: {name, phone}[]
+    +language: string
+    +lastUpdated: number
+  }
+
+  class "publicKeys/{publicKey}" as FirestorePublicKeys <<document>> {
+    +uid: string
+    +createdAt: timestamp
+    +updatedAt: number
+  }
+}
+
+BackendUsers "1" -- "0..*" BackendRefreshTokens : UserId [cascade]
+BackendRefreshTokens "0..1" -- "0..*" BackendRefreshTokens : ReplacedByTokenId [set null]
+BackendUsers "1" -- "0..1" BackendUserProfiles : UserId [cascade]
+BackendUsers "1" -- "0..*" BackendProfileAllergies : UserId [cascade]
+BackendUsers "1" -- "0..*" BackendMedicalNotes : UserId [cascade]
+BackendUsers "1" -- "0..*" BackendEmergencyContacts : UserId [cascade]
+BackendUsers "1" -- "0..*" BackendPublicProfileLinks : UserId [cascade]
+BackendUsers "0..1" -- "0..*" BackendAuditEvents : UserId [set null]
+BackendUsers "1" -- "0..*" BackendUserRoles : UserId [cascade]
+BackendRoles "1" -- "0..*" BackendUserRoles : RoleId [cascade]
+BackendRoles "1" -- "0..*" BackendRolePermissions : RoleId [cascade]
+BackendPermissions "1" -- "0..*" BackendRolePermissions : PermissionId [cascade]
+BackendSeededRbac ..> BackendRoles : seeds
+BackendSeededRbac ..> BackendPermissions : seeds
+BackendSeededRbac ..> BackendRolePermissions : grants
+BackendJwtClaims ..> BackendUserRoles : load roles
+BackendJwtClaims ..> BackendRolePermissions : load permissions
+BackendJwtClaims ..> BackendUsers : sub owns private resources
+BackendPublicAccess ..> BackendPublicProfileLinks : key + not revoked
+BackendPublicAccess ..> BackendUserProfiles : whitelist profile fields
+
+RoomUserProfile *-- "0..*" RoomEmergencyContact : emergencyContacts JSON
+FirestorePublicKeys --> FirestoreUsers : uid -> document id
+
+RoomUserProfile ..> BackendUserProfiles : cache/sync by userId in new flow
+RoomUserProfile ..> FirestoreUsers : cache/sync by userId in legacy flow
+
+note right of BackendUsers
+  Source of truth:
+  backend/HelpId.Api/Data/HelpIdDbContext.cs
+  backend/HelpId.Api/Data/Entities/*
+  backend/HelpId.Api/Data/Migrations/*
+end note
+
+note right of BackendJwtClaims
+  SQLite stores RBAC tables and ownership keys.
+  ASP.NET Core enforces access with JWT claims,
+  authorization policies, and current-user ownership checks.
+  SQLite itself does not provide row-level security here.
+end note
+
+note right of RoomUserProfile
+  Source of truth:
+  app/src/main/java/com/helpid/app/data/local/*
+end note
+
+note right of FirestoreUsers
+  Legacy Firebase/Firestore has not been removed.
+  Keep this collection shape in sync until a separate
+  migration/removal plan is executed.
+end note
+
+@enduml

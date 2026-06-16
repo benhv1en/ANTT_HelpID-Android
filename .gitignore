@@ -27,6 +27,7 @@ backend/**/obj/
 backend/**/*.db
 backend/**/*.db-shm
 backend/**/*.db-wal
+backend/.env.local
 
 # IDE/system
 .idea/

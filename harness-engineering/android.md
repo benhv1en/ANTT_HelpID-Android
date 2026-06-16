@@ -37,6 +37,35 @@ Quy tắc:
 - Không log email/password/token hoặc response body có profile.
 - Nếu backend/offline lỗi, EmergencyScreen vẫn ưu tiên Room cache đã có.
 
+## Xác thực vân tay (Biometric)
+
+Biometric là lớp khóa UI local, không phải một phương thức backend auth mới.
+
+Thành phần:
+
+- `BiometricAuthDecision.kt`: hàm thuần `resolveAuthState(userId, isBiometricEnabled, requiresRefresh): AuthState` — không có Android dependency, testable bằng JVM unit test.
+- `utils/BiometricManager.kt`: wrapper `BiometricPrompt` với `getAvailability`, `showBiometricPrompt`; trả sealed enums `BiometricAvailability` và `BiometricPromptError`, map về string resource.
+- `data/BiometricPreferenceStore.kt`: lưu trạng thái bật/tắt và `lastUnlockedAt` theo user id đã hash SHA-256 vào `EncryptedSharedPreferences` (`helpid_biometric_prefs`).
+- `MainActivity.kt` — `BiometricLockScreen`: màn hình khóa, hiện `BiometricPrompt`, nút fallback "Use password instead".
+- `ui/EditProfileScreen.kt` — `BiometricSettingsCard`: toggle bật/tắt với dialog xác nhận.
+
+Luồng auth state khi mở app:
+
+1. Access token còn hạn + biometric enabled → `BiometricLocked(userId, requiresRefresh=false)` → biometric success → `Authenticated` trực tiếp, không refresh thừa.
+2. Access token hết hạn + biometric enabled → `BiometricLocked(userId, requiresRefresh=true)` → biometric success → gọi `/api/v1/auth/refresh` → 401/403 clear token + clear biometric setting → `LocalCacheOnly` hoặc `Unauthenticated`.
+3. Offline + biometric → biometric success → refresh fail (NetworkError) → `LocalCacheOnly(isOffline=true)` nếu có Room cache.
+
+Quy tắc bắt buộc:
+
+- Không lưu biometric template, biometric identifier, hoặc kết quả enroll trong app, Room, SecurePrefs hoặc backend.
+- Không gửi bất cứ dữ liệu vân tay nào lên backend.
+- Biometric success không bỏ qua backend auth: 401/403 từ refresh vẫn clear token.
+- Logout phải gọi `biometricStore.clearForUser(userId)` ngay sau `tokenStore.clearTokens()`.
+- Refresh 401/403 phải gọi `biometricStore.clearForUser(userId)` cùng lúc clear token.
+- Không log userId, biometric result, error code raw, hay bất kỳ PII nào trong biometric path.
+- Khi thiết bị không hỗ trợ hoặc chưa enroll, hiển thị error message locale-aware và giữ nút "Use password instead" để thoát khỏi BiometricLockScreen.
+- SOS và EmergencyScreen không phụ thuộc vào biometric; không được crash khi biometric unavailable.
+
 ## Navigation và state
 
 Repo chưa dùng Navigation Compose. `MainActivity.AppNavigation` giữ `currentScreen` bằng `remember { mutableStateOf(initialScreen) }`.

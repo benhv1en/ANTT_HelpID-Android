@@ -155,7 +155,7 @@ class HelpIdApiAuthRepository(private val context: Context) : AuthRepository {
     // ── parsing (companion so unit tests can call without Context) ────────────
 
     companion object {
-        private const val TIMEOUT_MS = 20_000
+        private const val TIMEOUT_MS = 8_000
         private const val DEFAULT_ACCESS_TTL_MS = 15L * 60 * 1_000       // 15 min fallback
         private const val DEFAULT_REFRESH_TTL_MS = 30L * 24 * 60 * 60 * 1_000 // 30 days fallback
 

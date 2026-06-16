@@ -20,6 +20,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -39,6 +40,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -46,15 +49,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import android.provider.ContactsContract
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.NumberParseException
 import com.helpid.app.R
+import com.helpid.app.data.BiometricPreferenceStore
 import com.helpid.app.data.EmergencyContactData
-import com.helpid.app.data.FirebaseRepository
+import com.helpid.app.data.HelpIdApiProfileRepository
 import com.helpid.app.data.UserProfile
 import com.helpid.app.ui.theme.HelpIDTheme
+import com.helpid.app.utils.BiometricAvailability
+import com.helpid.app.utils.BiometricPromptError
+import com.helpid.app.utils.BiometricUtils
 import com.helpid.app.utils.LanguageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -75,13 +86,18 @@ fun EditProfileScreen(
     onLogout: (() -> Unit)? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val repository = remember { FirebaseRepository(context) }
+    val repository = remember { HelpIdApiProfileRepository(context) }
+    val biometricStore = remember { BiometricPreferenceStore(context) }
     val scope = rememberCoroutineScope()
     
     val profile = remember { mutableStateOf<UserProfile?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val isSaving = remember { mutableStateOf(false) }
+    val saveError = remember { mutableStateOf<String?>(null) }
     val showLogoutDialog = remember { mutableStateOf(false) }
+    val showDisableBiometricDialog = remember { mutableStateOf(false) }
+    val biometricEnabled = remember { mutableStateOf(false) }
+    val biometricStatusMessage = remember { mutableStateOf<Int?>(null) }
     
     val name = remember { mutableStateOf("") }
     val bloodGroup = remember { mutableStateOf("") }
@@ -201,7 +217,7 @@ fun EditProfileScreen(
     // Load profile on first launch
     LaunchedEffect(userId) {
         withContext(Dispatchers.IO) {
-            val loadedProfile = repository.getUserProfile(userId)
+            val loadedProfile = repository.getProfile()
             profile.value = loadedProfile
             
             // Populate fields
@@ -217,6 +233,65 @@ fun EditProfileScreen(
             
             isLoading.value = false
         }
+    }
+
+    LaunchedEffect(userId) {
+        biometricEnabled.value = biometricStore.isEnabledForUser(userId)
+        biometricStatusMessage.value = null
+    }
+
+    fun biometricAvailabilityMessage(availability: BiometricAvailability): Int {
+        return when (availability) {
+            BiometricAvailability.NoneEnrolled -> R.string.biometric_not_enrolled
+            BiometricAvailability.NoHardware,
+            BiometricAvailability.HardwareUnavailable,
+            BiometricAvailability.SecurityUpdateRequired,
+            BiometricAvailability.Unsupported -> R.string.biometric_not_available
+            BiometricAvailability.Unknown -> R.string.biometric_system_error
+            BiometricAvailability.Available -> R.string.biometric_enabled
+        }
+    }
+
+    fun requestEnableBiometric() {
+        val availability = BiometricUtils.getAvailability(context, allowDeviceCredential = true)
+        if (availability != BiometricAvailability.Available) {
+            biometricStatusMessage.value = biometricAvailabilityMessage(availability)
+            biometricEnabled.value = false
+            biometricStore.setEnabledForUser(userId, false)
+            return
+        }
+
+        val activity = context.findFragmentActivity()
+        if (activity == null) {
+            biometricStatusMessage.value = R.string.biometric_system_error
+            biometricEnabled.value = false
+            return
+        }
+
+        BiometricUtils.showBiometricPrompt(
+            activity = activity,
+            executor = ContextCompat.getMainExecutor(context),
+            onSuccess = {
+                biometricStore.setEnabledForUser(userId, true)
+                biometricStore.markUnlockedForUser(userId)
+                biometricEnabled.value = true
+                biometricStatusMessage.value = R.string.biometric_enabled
+            },
+            onError = { failure ->
+                biometricEnabled.value = false
+                biometricStatusMessage.value = when (failure.error) {
+                    BiometricPromptError.Canceled -> R.string.biometric_canceled
+                    else -> failure.messageResId
+                }
+            },
+            allowDeviceCredential = true
+        )
+    }
+
+    fun disableBiometric() {
+        biometricStore.setEnabledForUser(userId, false)
+        biometricEnabled.value = false
+        biometricStatusMessage.value = R.string.biometric_disabled
     }
 
     Column(
@@ -408,6 +483,20 @@ fun EditProfileScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            BiometricSettingsCard(
+                enabled = biometricEnabled.value,
+                statusMessageRes = biometricStatusMessage.value,
+                onToggle = { checked ->
+                    if (checked) {
+                        requestEnableBiometric()
+                    } else {
+                        showDisableBiometricDialog.value = true
+                    }
+                }
+            )
+
             Spacer(modifier = Modifier.height(20.dp))
 
             // Action Buttons
@@ -417,12 +506,23 @@ fun EditProfileScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (saveError.value != null) {
+                    Text(
+                        text = saveError.value!!,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
                 // Save Button
                 PrimaryButton(
                     text = if (isSaving.value) stringResource(R.string.saving) else stringResource(R.string.save),
                     onClick = {
                         isSaving.value = true
-                        
+                        saveError.value = null
+
                         val updatedProfile = UserProfile(
                             userId = userId,
                             name = name.value,
@@ -439,15 +539,21 @@ fun EditProfileScreen(
                             language = LanguageManager.getSelectedLanguage(context).code
                         )
 
-                        // Save to Firebase in coroutine
                         scope.launch {
-                            withContext(Dispatchers.IO) {
-                                val success = repository.updateUserProfile(userId, updatedProfile)
+                            try {
+                                val success = withContext(Dispatchers.IO) {
+                                    repository.updateProfile(updatedProfile)
+                                }
                                 isSaving.value = false
                                 if (success) {
                                     onSaveSuccess()
                                     onBackClick()
+                                } else {
+                                    saveError.value = context.getString(R.string.save_error)
                                 }
+                            } catch (_: Exception) {
+                                isSaving.value = false
+                                saveError.value = context.getString(R.string.save_error)
                             }
                         }
                     },
@@ -481,6 +587,30 @@ fun EditProfileScreen(
                 }
             }
 
+            if (showDisableBiometricDialog.value) {
+                AlertDialog(
+                    onDismissRequest = { showDisableBiometricDialog.value = false },
+                    title = { Text(stringResource(R.string.biometric_disable_confirm_title)) },
+                    text = { Text(stringResource(R.string.biometric_disable_confirm_body)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showDisableBiometricDialog.value = false
+                            disableBiometric()
+                        }) {
+                            Text(
+                                text = stringResource(R.string.biometric_turn_off),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDisableBiometricDialog.value = false }) {
+                            Text(stringResource(R.string.biometric_keep_on))
+                        }
+                    }
+                )
+            }
+
             if (showLogoutDialog.value && onLogout != null) {
                 AlertDialog(
                     onDismissRequest = { showLogoutDialog.value = false },
@@ -506,6 +636,63 @@ fun EditProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun BiometricSettingsCard(
+    enabled: Boolean,
+    statusMessageRes: Int?,
+    onToggle: (Boolean) -> Unit
+) {
+    val switchLabel = stringResource(R.string.biometric_settings_title)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .shadow(elevation = 1.dp, shape = RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.biometric_settings_title),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.biometric_settings_body),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+                if (statusMessageRes != null) {
+                    Text(
+                        text = stringResource(statusMessageRes),
+                        fontSize = 12.sp,
+                        color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+            Switch(
+                checked = enabled,
+                onCheckedChange = onToggle,
+                modifier = Modifier.semantics { contentDescription = switchLabel }
+            )
         }
     }
 }
@@ -718,5 +905,13 @@ private fun ContactEditor(
                 onValueChange = onPhoneChange
             )
         }
+    }
+}
+
+private tailrec fun Context.findFragmentActivity(): FragmentActivity? {
+    return when (this) {
+        is FragmentActivity -> this
+        is ContextWrapper -> baseContext.findFragmentActivity()
+        else -> null
     }
 }

@@ -4,7 +4,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,16 +48,19 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.helpid.app.data.AuthResult
 import com.helpid.app.data.AuthTokenStore
+import com.helpid.app.data.BiometricPreferenceStore
 import com.helpid.app.data.FirebaseRepository
 import com.helpid.app.data.HelpIdApiAuthRepository
 import com.helpid.app.data.HelpIdApiEmergencyLinkRepository
 import com.helpid.app.data.local.AppDatabase
+import com.helpid.app.ui.AdminScreen
 import com.helpid.app.ui.EditProfileScreen
 import com.helpid.app.ui.EmergencyScreen
 import com.helpid.app.ui.LanguageSelectionScreen
@@ -67,6 +71,9 @@ import com.helpid.app.ui.components.ShimmerPlaceholder
 import com.helpid.app.ui.components.SkeletonSpacer
 import com.helpid.app.ui.components.SkeletonTextLine
 import com.helpid.app.ui.theme.HelpIDTheme
+import com.helpid.app.utils.BiometricAvailability
+import com.helpid.app.utils.BiometricPromptError
+import com.helpid.app.utils.BiometricUtils
 import com.helpid.app.utils.LanguageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -79,11 +86,12 @@ private const val TAG = "HelpID"
 sealed class AuthState {
     object Initializing : AuthState()
     data class Authenticated(val userId: String) : AuthState()
+    data class BiometricLocked(val userId: String, val requiresRefresh: Boolean) : AuthState()
     data class LocalCacheOnly(val userId: String, val isOffline: Boolean = false) : AuthState()
     object Unauthenticated : AuthState()
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private fun applyLockScreenFlagsIfNeeded() {
         val isFullscreenTest = intent?.getBooleanExtra("fullscreen_test", false) == true
         if (!isFullscreenTest) return
@@ -192,9 +200,85 @@ fun AppNavigation(initialScreen: String = "emergency") {
     val context = LocalContext.current
     val repository = remember { FirebaseRepository(context) }
     val tokenStore = remember { AuthTokenStore(context) }
+    val biometricStore = remember { BiometricPreferenceStore(context) }
     val authRepository = remember { HelpIdApiAuthRepository(context) }
     val emergencyLinkRepository = remember { HelpIdApiEmergencyLinkRepository(context, tokenStore, authRepository) }
     val scope = rememberCoroutineScope()
+
+    suspend fun hasCachedProfile(userId: String): Boolean {
+        if (userId.isBlank()) return false
+        return withContext(Dispatchers.IO) {
+            try {
+                AppDatabase.getDatabase(context)
+                    .userProfileDao().getUserProfile(userId) != null
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
+
+    fun authenticatedOrBiometricLocked(userId: String, requiresRefresh: Boolean): AuthState =
+        resolveAuthState(
+            userId = userId,
+            isBiometricEnabled = biometricStore.isEnabledForUser(userId),
+            requiresRefresh = requiresRefresh
+        )
+
+    fun refreshAfterBiometricUnlock(userId: String) {
+        scope.launch {
+            val storedRefresh = tokenStore.getRefreshToken()
+            if (storedRefresh.isNullOrBlank()) {
+                authState.value = if (hasCachedProfile(userId)) {
+                    AuthState.LocalCacheOnly(userId, isOffline = false)
+                } else {
+                    AuthState.Unauthenticated
+                }
+                return@launch
+            }
+
+            val result = withContext(Dispatchers.IO) {
+                authRepository.refresh(storedRefresh, Build.MODEL)
+            }
+
+            authState.value = when (result) {
+                is AuthResult.Success -> {
+                    tokenStore.saveTokens(
+                        result.accessToken,
+                        result.refreshToken,
+                        result.userId,
+                        result.accessTokenExpiresAtEpochMs,
+                        result.refreshTokenExpiresAtEpochMs
+                    )
+                    AuthState.Authenticated(result.userId)
+                }
+                is AuthResult.NetworkError -> {
+                    if (hasCachedProfile(userId)) {
+                        AuthState.LocalCacheOnly(userId, isOffline = true)
+                    } else {
+                        AuthState.Unauthenticated
+                    }
+                }
+                is AuthResult.ApiError -> {
+                    if (result.httpStatus in 400..403) {
+                        tokenStore.clearTokens()
+                        biometricStore.clearForUser(userId)
+                    }
+                    if (hasCachedProfile(userId)) {
+                        AuthState.LocalCacheOnly(userId, isOffline = false)
+                    } else {
+                        AuthState.Unauthenticated
+                    }
+                }
+                else -> {
+                    if (hasCachedProfile(userId)) {
+                        AuthState.LocalCacheOnly(userId, isOffline = false)
+                    } else {
+                        AuthState.Unauthenticated
+                    }
+                }
+            }
+        }
+    }
 
     fun performLogout() {
         scope.launch {
@@ -206,12 +290,8 @@ fun AppNavigation(initialScreen: String = "emergency") {
                 }
             }
             tokenStore.clearTokens()
-            val hasCache = userId.isNotEmpty() && withContext(Dispatchers.IO) {
-                try {
-                    AppDatabase.getDatabase(context)
-                        .userProfileDao().getUserProfile(userId) != null
-                } catch (_: Exception) { false }
-            }
+            biometricStore.clearForUser(userId)
+            val hasCache = hasCachedProfile(userId)
             currentScreen.value = "emergency"
             authState.value = if (hasCache)
                 AuthState.LocalCacheOnly(userId, isOffline = false)
@@ -227,7 +307,7 @@ fun AppNavigation(initialScreen: String = "emergency") {
             if (tokenStore.hasValidSession()) {
                 val uid = tokenStore.getUserId().orEmpty()
                 Log.d(TAG, "Token valid; session restored")
-                authState.value = AuthState.Authenticated(uid)
+                authState.value = authenticatedOrBiometricLocked(uid, requiresRefresh = false)
                 return@LaunchedEffect
             }
 
@@ -235,6 +315,11 @@ fun AppNavigation(initialScreen: String = "emergency") {
             val storedRefresh = tokenStore.getRefreshToken()
             if (storedRefresh != null) {
                 val storedUserId = tokenStore.getUserId().orEmpty()
+                if (storedUserId.isNotBlank() && biometricStore.isEnabledForUser(storedUserId)) {
+                    Log.d(TAG, "Session requires biometric before refresh")
+                    authState.value = AuthState.BiometricLocked(storedUserId, requiresRefresh = true)
+                    return@LaunchedEffect
+                }
                 Log.d(TAG, "Attempting token refresh")
                 val result = withContext(Dispatchers.IO) {
                     authRepository.refresh(storedRefresh, Build.MODEL)
@@ -252,14 +337,9 @@ fun AppNavigation(initialScreen: String = "emergency") {
                         return@LaunchedEffect
                     }
                     is AuthResult.NetworkError -> {
-                        // Offline — show cached profile immediately, skip Firebase
+                        // Offline — show cached profile only; do not sync remote without a valid session.
                         Log.w(TAG, "Refresh failed: device offline")
-                        val hasCache = storedUserId.isNotEmpty() && withContext(Dispatchers.IO) {
-                            try {
-                                AppDatabase.getDatabase(context)
-                                    .userProfileDao().getUserProfile(storedUserId) != null
-                            } catch (_: Exception) { false }
-                        }
+                        val hasCache = hasCachedProfile(storedUserId)
                         authState.value = if (hasCache)
                             AuthState.LocalCacheOnly(storedUserId, isOffline = true)
                         else
@@ -271,12 +351,8 @@ fun AppNavigation(initialScreen: String = "emergency") {
                             // Invalid or revoked refresh token — discard credentials
                             Log.w(TAG, "Refresh failed: invalid token (${result.httpStatus})")
                             tokenStore.clearTokens()
-                            val hasCache = storedUserId.isNotEmpty() && withContext(Dispatchers.IO) {
-                                try {
-                                    AppDatabase.getDatabase(context)
-                                        .userProfileDao().getUserProfile(storedUserId) != null
-                                } catch (_: Exception) { false }
-                            }
+                            biometricStore.clearForUser(storedUserId)
+                            val hasCache = hasCachedProfile(storedUserId)
                             authState.value = if (hasCache)
                                 AuthState.LocalCacheOnly(storedUserId, isOffline = false)
                             else
@@ -322,6 +398,23 @@ fun AppNavigation(initialScreen: String = "emergency") {
     when {
         authState.value is AuthState.Initializing -> {
             InitSkeleton(null)
+        }
+
+        authState.value is AuthState.BiometricLocked && currentScreen.value != "login" -> {
+            val lockedState = authState.value as AuthState.BiometricLocked
+            BiometricLockScreen(
+                userId = lockedState.userId,
+                requiresRefresh = lockedState.requiresRefresh,
+                biometricStore = biometricStore,
+                onUnlocked = { userId, requiresRefresh ->
+                    if (requiresRefresh) {
+                        refreshAfterBiometricUnlock(userId)
+                    } else {
+                        authState.value = AuthState.Authenticated(userId)
+                    }
+                },
+                onUsePassword = { currentScreen.value = "login" }
+            )
         }
 
         currentScreen.value == "register" -> {
@@ -380,6 +473,7 @@ fun AppNavigation(initialScreen: String = "emergency") {
         else -> {
             val authenticatedState = authState.value as? AuthState.Authenticated
             val userId = authenticatedState?.userId.orEmpty()
+            val isAdminUser = remember(authState.value) { tokenStore.isAdmin() }
 
             Scaffold(
                 contentWindowInsets = WindowInsets.navigationBars,
@@ -401,7 +495,10 @@ fun AppNavigation(initialScreen: String = "emergency") {
                             EmergencyScreen(
                                 userId = userId,
                                 onLanguageClick = { currentScreen.value = "language" },
-                                onMintLink = { emergencyLinkRepository.mintOrEmpty() }
+                                onMintLink = { emergencyLinkRepository.mintOrEmpty() },
+                                onAdminClick = if (isAdminUser) {
+                                    { currentScreen.value = "admin" }
+                                } else null
                             )
                         }
                         "qr" -> {
@@ -428,12 +525,128 @@ fun AppNavigation(initialScreen: String = "emergency") {
                                 onBackClick = { currentScreen.value = "emergency" }
                             )
                         }
+                        "admin" -> {
+                            LaunchedEffect(isAdminUser) {
+                                if (!isAdminUser) currentScreen.value = "emergency"
+                            }
+                            if (isAdminUser) {
+                                AdminScreen(
+                                    onBackClick = { currentScreen.value = "emergency" },
+                                    onUnauthorized = { currentScreen.value = "emergency" }
+                                )
+                            }
+                        }
                         else -> {
                             currentScreen.value = "emergency"
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BiometricLockScreen(
+    userId: String,
+    requiresRefresh: Boolean,
+    biometricStore: BiometricPreferenceStore,
+    onUnlocked: (String, Boolean) -> Unit,
+    onUsePassword: () -> Unit
+) {
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity
+    val statusMessage = remember { mutableStateOf<Int?>(null) }
+
+    fun availabilityMessage(availability: BiometricAvailability): Int {
+        return when (availability) {
+            BiometricAvailability.NoneEnrolled -> R.string.biometric_not_enrolled
+            BiometricAvailability.NoHardware,
+            BiometricAvailability.HardwareUnavailable,
+            BiometricAvailability.SecurityUpdateRequired,
+            BiometricAvailability.Unsupported -> R.string.biometric_not_available
+            BiometricAvailability.Unknown -> R.string.biometric_system_error
+            BiometricAvailability.Available -> R.string.biometric_unlock_subtitle
+        }
+    }
+
+    fun requestUnlock() {
+        if (activity == null) {
+            statusMessage.value = R.string.biometric_system_error
+            return
+        }
+
+        val availability = BiometricUtils.getAvailability(context, allowDeviceCredential = true)
+        if (availability != BiometricAvailability.Available) {
+            statusMessage.value = availabilityMessage(availability)
+            return
+        }
+
+        BiometricUtils.showBiometricPrompt(
+            activity = activity,
+            executor = ContextCompat.getMainExecutor(context),
+            onSuccess = {
+                biometricStore.markUnlockedForUser(userId)
+                onUnlocked(userId, requiresRefresh)
+            },
+            onError = { failure ->
+                statusMessage.value = when (failure.error) {
+                    BiometricPromptError.Canceled -> R.string.biometric_canceled
+                    else -> failure.messageResId
+                }
+            },
+            allowDeviceCredential = true
+        )
+    }
+
+    LaunchedEffect(userId, requiresRefresh) {
+        requestUnlock()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 28.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Surface(
+            modifier = Modifier.size(72.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Outlined.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(18.dp))
+        Text(
+            text = stringResource(R.string.biometric_unlock_title),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(statusMessage.value ?: R.string.biometric_unlock_subtitle),
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(22.dp))
+        TextButton(onClick = { requestUnlock() }) {
+            Text(
+                text = stringResource(R.string.biometric_try_again),
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        TextButton(onClick = onUsePassword) {
+            Text(stringResource(R.string.biometric_use_password))
         }
     }
 }

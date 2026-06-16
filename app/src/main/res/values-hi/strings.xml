@@ -73,6 +73,23 @@
     <string name="biometric_access_subtitle">Authenticate to view emergency information</string>
     <string name="biometric_cancel">Cancel</string>
     <string name="biometric_auth_failed">Authentication failed</string>
+    <string name="biometric_not_available">इस डिवाइस पर फिंगरप्रिंट उपलब्ध नहीं है।</string>
+    <string name="biometric_not_enrolled">पहले system settings में फिंगरप्रिंट जोड़ें।</string>
+    <string name="biometric_locked_out">बहुत अधिक प्रयास। बाद में फिर कोशिश करें।</string>
+    <string name="biometric_settings_title">फिंगरप्रिंट अनलॉक</string>
+    <string name="biometric_settings_body">इस डिवाइस पर HelpID की सुरक्षित स्क्रीन खोलते समय फिंगरप्रिंट या डिवाइस लॉक मांगें।</string>
+    <string name="biometric_disable_confirm_title">फिंगरप्रिंट अनलॉक बंद करें?</string>
+    <string name="biometric_disable_confirm_body">HelpID इस डिवाइस पर biometric unlock मांगना बंद कर देगा।</string>
+    <string name="biometric_turn_off">बंद करें</string>
+    <string name="biometric_keep_on">चालू रखें</string>
+    <string name="biometric_enabled">फिंगरप्रिंट अनलॉक चालू है।</string>
+    <string name="biometric_disabled">फिंगरप्रिंट अनलॉक बंद है।</string>
+    <string name="biometric_canceled">Authentication cancel कर दी गई।</string>
+    <string name="biometric_system_error">फिंगरप्रिंट अनलॉक अभी उपलब्ध नहीं है।</string>
+    <string name="biometric_unlock_title">HelpID अनलॉक करें</string>
+    <string name="biometric_unlock_subtitle">जारी रखने के लिए फिंगरप्रिंट या डिवाइस लॉक इस्तेमाल करें।</string>
+    <string name="biometric_try_again">फिर कोशिश करें</string>
+    <string name="biometric_use_password">पासवर्ड इस्तेमाल करें</string>
     <string name="edit_profile">प्रोफ़ाइल संपादित करें</string>
     <string name="update_emergency_information">अपनी आपातकालीन जानकारी अपडेट करें</string>
     <string name="emergency_contact_1">आपातकालीन संपर्क 1</string>
@@ -178,4 +195,43 @@
     <string name="auth_logout_confirm_no">रद्द करें</string>
     <string name="auth_cd_show_password">पासवर्ड दिखाएं</string>
     <string name="auth_cd_hide_password">पासवर्ड छिपाएं</string>
+
+    <!-- Server settings dialog -->
+    <string name="server_settings">सर्वर सेटिंग</string>
+    <string name="server_url_label">सर्वर URL</string>
+    <string name="server_url_hint">http://192.168.x.x:5080</string>
+    <string name="server_url_save">सहेजें</string>
+    <string name="server_url_test">कनेक्शन जांचें</string>
+    <string name="server_url_test_ok">कनेक्ट हो गया</string>
+    <string name="server_url_test_fail">कनेक्ट नहीं हो सका</string>
+    <string name="save_error">सहेजना विफल। कृपया पुनः प्रयास करें।</string>
+
+    <!-- Admin Screen -->
+    <string name="admin_screen_title">व्यवस्थापक</string>
+    <string name="admin_tab_dashboard">डैशबोर्ड</string>
+    <string name="admin_tab_users">उपयोगकर्ता</string>
+    <string name="admin_stat_total_users">कुल उपयोगकर्ता</string>
+    <string name="admin_stat_total_profiles">बनाई गई प्रोफ़ाइल</string>
+    <string name="admin_stat_total_links">सार्वजनिक लिंक</string>
+    <string name="admin_stat_audit_7d">ऑडिट इवेंट (7 दिन)</string>
+    <string name="admin_user_role_label">भूमिकाएँ</string>
+    <string name="admin_user_locked">लॉक है</string>
+    <string name="admin_user_active">सक्रिय</string>
+    <string name="admin_assign_admin_role">Admin दें</string>
+    <string name="admin_revoke_admin_role">Admin हटाएँ</string>
+    <string name="admin_action_success">हो गया</string>
+    <string name="admin_action_loading">प्रक्रिया हो रही है…</string>
+    <string name="admin_error_unauthorized">आपके पास व्यवस्थापक पहुँच नहीं है।</string>
+    <string name="admin_error_network">नेटवर्क त्रुटि। कृपया पुनः प्रयास करें।</string>
+    <string name="admin_error_not_found">उपयोगकर्ता नहीं मिला।</string>
+    <string name="admin_self_revoke_blocked">आप अपनी खुद की admin भूमिका नहीं हटा सकते।</string>
+    <string name="admin_entry_button">Admin पैनल</string>
+    <string name="admin_prev_page">पिछला</string>
+    <string name="admin_next_page">अगला</string>
+    <string name="admin_no_users">कोई उपयोगकर्ता नहीं मिला।</string>
+    <string name="admin_dismiss">बंद करें</string>
+    <string name="admin_role_empty">कोई नहीं</string>
+    <string name="admin_page_of">%1$d / %2$d</string>
+    <string name="admin_cd_assign_role">%s को admin दें</string>
+    <string name="admin_cd_revoke_role">%s से admin हटाएँ</string>
 </resources>

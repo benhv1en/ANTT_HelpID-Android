@@ -19,6 +19,7 @@ skinparam actor {
 title Backend HelpID API - Sơ đồ UML Use-case
 
 actor "Android Client\n(xác thực JWT)" as AndroidClient <<external>>
+actor "Android Admin Client\n(role Admin + JWT)" as AdminClient <<external>>
 actor "Web Client\n(public profile)" as WebClient <<external>>
 actor "Quản trị vận hành" as Operator
 
@@ -46,7 +47,18 @@ rectangle "Backend HelpID API\n(ASP.NET Core + EF Core SQLite)" as Backend {
   usecase "Ghi audit event\nkhông chứa dữ liệu nhạy cảm" as UC_AuditEvent
   usecase "Validate request\nvà chặn SQL injection\n(EF Core parameterized)" as UC_ValidateAntiInjection
   usecase "Health check\nGET /health" as UC_Health
+  usecase "Lấy thống kê admin\nGET /api/v1/admin/stats" as UC_ApiAdminStats
+  usecase "Danh sách user với phân trang\nGET /api/v1/admin/users" as UC_ApiAdminUsers
+  usecase "Gán role cho user\nPOST /api/v1/admin/users/{userId}/roles/{roleId}" as UC_ApiAdminAssignRole
+  usecase "Thu hồi role của user\nDELETE /api/v1/admin/users/{userId}/roles/{roleId}" as UC_ApiAdminRevokeRole
+  usecase "Enforce AdminMetadata policy\n(role Admin + permission admin:metadata:read)" as UC_EnforceAdminPolicy
+  usecase "Ghi audit event\nkhi gán / thu hồi role" as UC_AdminAuditEvent
 }
+
+AdminClient -- UC_ApiAdminStats
+AdminClient -- UC_ApiAdminUsers
+AdminClient -- UC_ApiAdminAssignRole
+AdminClient -- UC_ApiAdminRevokeRole
 
 AndroidClient -- UC_ApiRegister
 AndroidClient -- UC_ApiLogin
@@ -84,6 +96,18 @@ UC_ApiGetPublicProfile ..> UC_VerifyProfileJwt : <<include>>
 UC_ApiGetPublicProfile ..> UC_SanitizeProfile : <<include>>
 UC_ApiGetPublicProfile ..> UC_ValidateAntiInjection : <<include>>
 
+UC_ApiAdminStats ..> UC_EnforceAdminPolicy : <<include>>
+UC_ApiAdminUsers ..> UC_EnforceAdminPolicy : <<include>>
+UC_ApiAdminAssignRole ..> UC_EnforceAdminPolicy : <<include>>
+UC_ApiAdminAssignRole ..> UC_AdminAuditEvent : <<include>>
+UC_ApiAdminRevokeRole ..> UC_EnforceAdminPolicy : <<include>>
+UC_ApiAdminRevokeRole ..> UC_AdminAuditEvent : <<include>>
+
+SQLiteDb -- UC_ApiAdminStats
+SQLiteDb -- UC_ApiAdminUsers
+SQLiteDb -- UC_ApiAdminAssignRole
+SQLiteDb -- UC_ApiAdminRevokeRole
+
 SQLiteDb -- UC_ApiRegister
 SQLiteDb -- UC_RotateRefreshToken
 SQLiteDb -- UC_RolePermission
@@ -103,5 +127,21 @@ end note
 note bottom of UC_ValidateAntiInjection
   Dùng EF Core LINQ/parameterized query,
   không ghép chuỗi SQL từ input người dùng.
+end note
+
+note right of UC_EnforceAdminPolicy
+  AdminMetadata policy: yêu cầu đồng thời
+  role "Admin" VÀ permission "admin:metadata:read".
+  Backend lấy caller identity từ JWT sub,
+  không tin userId trong path/body.
+  Response không trả passwordHash, securityStamp,
+  tokenHash, phoneNumber, dữ liệu y tế.
+end note
+
+note right of UC_ApiAdminRevokeRole
+  roleId phải là "role_user" hoặc "role_admin"
+  (whitelist cứng — 400 nếu ngoài whitelist).
+  Admin không thể thu hồi role_admin
+  của chính mình → 403.
 end note
 @enduml

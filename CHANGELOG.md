@@ -1,3 +1,137 @@
+16/06/2026 20:35:00
+- **PROMPT 41 — Checklist test thủ công admin screen (12 TC):** Chạy và ghi kết quả 12 test case thủ công trên emulator `emulator-5554` + backend `localhost:5080`. TC-01 (role_user không thấy nút Admin), TC-02 (gán role_admin qua SQLite + re-login → nút Admin hiện), TC-03 (Dashboard stats đúng: users=3, profiles=3, public_links=1, audit_7d=0), TC-04 (Users list hiển thị email/role/date, TalkBack contentDescription đúng), TC-05 (phân trang 1/1 giữ boundary đúng), TC-06 (Grant Admin → Done banner + list reload), TC-07 (Revoke Admin → Done banner + list reload), TC-08 (offline → "Network error. Please try again." không crash), TC-09 (401 auto-refresh xác nhận code review + unit test), TC-10 (← button → EmergencyScreen), TC-11 (role_user không có đường dẫn đến route admin; LaunchedEffect guard xác nhận code review), TC-12 (403 → onUnauthorized redirect xác nhận code review + unit test). Tất cả 12 TC: PASS. Phát hiện phụ: backend cần env var `HELPID_AUTH_JWT_SIGNING_KEY` khi khởi động lại (đã resolve). Kết quả ghi trong `passed-testcases.md`.
+
+16/06/2026 19:30:00
+- **PROMPT 40 — Security & UX hardening audit (Admin):**
+- Backend `AdminService.cs`: sửa 2 bug SQLite EF Core 8.0 không support `DateTimeOffset` trong LINQ ORDER BY và `>=` comparison — `GetStatsAsync` pull timestamp list client-side trước khi filter; `GetUsersAsync` pull all rows rồi sort/page client-side (admin-only endpoint, user count manageable). Không còn `baseQuery.CountAsync()` kéo theo ORDER BY vào COUNT query.
+- Android `AdminScreen.kt`: thêm 2 import semantics (`semantics`, `contentDescription`); thêm TalkBack `contentDescription` cho nút ✕ (dismiss banner) qua `Modifier.semantics { contentDescription = dismissLabel }`; thêm `contentDescription` cho nút assign/revoke trong `AdminUserRow` (bao gồm email của user); đổi hardcoded `"—"` → `stringResource(R.string.admin_role_empty)`; đổi hardcoded `"$currentPage / $totalPages"` → `stringResource(R.string.admin_page_of, currentPage, totalPages)`.
+- String resources: thêm 5 key mới vào đủ 6 locale (`values/`, `values-vi/`, `values-de/`, `values-es/`, `values-fr/`, `values-hi/`): `admin_dismiss`, `admin_role_empty`, `admin_page_of` (`%1$d / %2$d`), `admin_cd_assign_role` (`%s`), `admin_cd_revoke_role` (`%s`).
+- Backend audit xác nhận: không có `passwordHash`/`securityStamp`/`tokenHash`/health data trong DTO; không có raw SQL; `userId`/`roleId` là route param do ASP.NET Core bind (không ghép chuỗi); `AllowedRoleIds` whitelist enforce đúng; `callerUserId` lấy từ JWT sub (không từ request body).
+- Android audit xác nhận: nút admin chỉ render khi `isAdmin() == true`; 403 → `onUnauthorized()` navigate back; zero `Log.*` calls trong `AdminScreen.kt` và `HelpIdApiAdminRepository.kt`.
+- Test run: `cd backend/HelpId.Api.Tests && dotnet test` — 42/42 PASS (bao gồm 2 test trước đó fail do SQLite DateTimeOffset bug, nay đã fix).
+- Test run: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:testDebugUnitTest` — BUILD SUCCESSFUL, 0 failures.
+- Test run: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:lintDebug` — BUILD SUCCESSFUL, 0 lint errors.
+
+16/06/2026 18:43:56
+- Tạo `app/src/test/java/com/helpid/app/data/HelpIdApiAdminRepositoryTest.kt` với 10 unit test cho `HelpIdApiAdminRepository`: (1) getStats 200 parse đúng 4 field; (2) getStats IOException → AdminApiResult.Offline không crash; (3) getStats 401 → refresh token + retry → Ok; (4) getStats 403 → AdminApiResult.Forbidden; (5) getUsers 200 parse page/items/totalCount; (6) getUsers page ngoài range → Ok với empty list không crash; (7) assignRole 204 → Ok; (8) assignRole IOException → Offline không crash; (9) revokeRole 204 → Ok; (10) revokeRole 404 → Failed không crash. Dùng FakeTokenSource/FakeAuthRepo/FakeAdminHttpClient inject qua internal constructor. Không dùng dữ liệu y tế trong fixture.
+- Test run: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:testDebugUnitTest` — BUILD SUCCESSFUL, 10/10 admin tests PASS, 0 failures, 0 errors.
+
+16/06/2026 18:38:49
+- Thêm `sealed class AdminApiResult<T>` vào `HelpIdApiAdminRepository.kt` với 4 variant: `Ok(value)`, `Forbidden` (HTTP 403), `Offline` (IOException), `Failed` (mọi lỗi còn lại) — thay thế kiểu trả về `AdminStats?`/`AdminUsersPage?`/`Boolean` để screen phân biệt được lỗi 403 vs lỗi mạng.
+- Cập nhật 4 hàm trong `HelpIdApiAdminRepository.kt`: `getStats()`, `getUsers()`, `assignRole()`, `revokeRole()` — mỗi hàm check 403 riêng (`AdminApiResult.Forbidden`), catch `IOException` riêng (`AdminApiResult.Offline`), dùng `var response` + replace sau retry 401 thay vì destructuring.
+- Rewrite `AdminScreen.kt`: trạng thái lỗi chuyển từ `Boolean` sang `String?` (`statsErrorMessage`, `usersErrorMessage`) để chứa text lỗi cụ thể; `loadStats`/`loadUsers` dùng `try/finally` để đảm bảo `isLoading = false` luôn được gọi; `Forbidden` → `context.getString(R.string.admin_error_unauthorized)` + gọi `onUnauthorized()` (navigate back); lỗi mạng/khác → `context.getString(R.string.admin_error_network)`; `onAssignAdmin`/`onRevokeAdmin` dùng `try/finally { busyUserId.value = null }` để tránh row bị kẹt trạng thái loading; sau assign/revoke thành công reload list users; thêm import `AdminApiResult`.
+- `AdminDashboardContent` và `AdminUsersContent` nhận `errorMessage: String?` thay vì `hasError: Boolean` — hiển thị đúng message trong `AdminErrorState` với nút retry.
+- Build: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug` — BUILD SUCCESSFUL in 8s.
+
+16/06/2026 18:40:00
+- Thêm `isAdmin(): Boolean` vào `AuthTokenStore.kt`: decode JWT payload (Base64url) từ access token đang lưu, trả `true` nếu payload chứa `"admin:metadata:read"`, trả `false` khi không có token/sai format/exception — client-side UI gate only, không log token.
+- Cập nhật `EmergencyScreen.kt`: thêm param `onAdminClick: (() -> Unit)? = null`; thêm `AdminPanelSettings` icon button tại `Alignment.CenterStart` trong header Box — chỉ hiện khi `onAdminClick != null`.
+- Cập nhật `MainActivity.kt`: import `AdminScreen`; thêm `val isAdminUser = remember(authState.value) { tokenStore.isAdmin() }` trong else (Authenticated) block; truyền `onAdminClick = if (isAdminUser) { { currentScreen.value = "admin" } } else null` vào `EmergencyScreen`; thêm route `"admin"` vào `when(currentScreen.value)` với guard `LaunchedEffect` redirect về `"emergency"` nếu không phải admin.
+- Build: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug` — BUILD SUCCESSFUL in 8s.
+
+16/06/2026 18:22:38
+- Tạo `app/src/main/java/com/helpid/app/ui/AdminScreen.kt` với Jetpack Compose: `AdminScreen` composable với 2 tab (Dashboard và Users); Dashboard hiển thị 4 `AdminStatCard` (totalUsers, totalProfiles, totalPublicLinks, auditEventsLast7Days); Users tab có `LazyColumn` paginated với nút Previous/Next và text "currentPage / totalPages"; mỗi `AdminUserRow` hiển thị email, role, ngày tạo (yyyy-MM-dd), trạng thái active/locked, nút "Cấp Admin"/"Thu hồi Admin" theo role hiện tại; loading state (skeleton card), error state (message + retry), empty state; banner thông báo action thành công/thất bại; tự detect self-revoke client-side trước khi gọi API; không hiển thị dữ liệu y tế.
+- Thêm 22 string key admin vào đủ 6 locale (`values/`, `values-vi/`, `values-de/`, `values-es/`, `values-fr/`, `values-hi/`): admin_screen_title, admin_tab_dashboard, admin_tab_users, admin_stat_total_users, admin_stat_total_profiles, admin_stat_total_links, admin_stat_audit_7d, admin_user_role_label, admin_user_locked, admin_user_active, admin_assign_admin_role, admin_revoke_admin_role, admin_action_success, admin_action_loading, admin_error_unauthorized, admin_error_network, admin_error_not_found, admin_self_revoke_blocked, admin_entry_button, admin_prev_page, admin_next_page, admin_no_users.
+- Build: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug` — BUILD SUCCESSFUL.
+
+16/06/2026 18:16:39
+- Tạo `app/src/main/java/com/helpid/app/data/HelpIdApiAdminRepository.kt`: data classes `AdminStats`, `AdminUserItem`, `AdminUsersPage`; interface `AdminHttpClient` (get/post/delete cho unit test); `HelpIdApiAdminRepository` với internal constructor inject `ProfileTokenSource`, `AuthRepository`, `AdminHttpClient`, `getBaseUrl` — expose `getStats(): AdminStats?`, `getUsers(page, size): AdminUsersPage?`, `assignRole(userId, roleId): Boolean`, `revokeRole(userId, roleId): Boolean`; tự refresh token khi 401 và retry 1 lần; trả null/false khi lỗi mạng hoặc non-2xx; không log userId/email/token/health data; private class `AdminTokenStoreAdapter` và `DefaultAdminHttpClient` wiring production deps.
+- Build: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew :app:assembleDebug` — BUILD SUCCESSFUL.
+
+16/06/2026 18:30:00
+- Tạo `backend/HelpId.Api.Tests/AdminApiTests.cs` với 8 test cases cho admin API: (1) `Regular_user_is_denied_by_admin_metadata_policy` — user thường không có `admin:metadata:read` bị từ chối và policy chỉ cho phép role Admin; (2) `Unauthenticated_is_denied_by_admin_metadata_policy` — policy có `DenyAnonymousAuthorizationRequirement`; (3) `GetStats_returns_200_with_correct_schema` — 4 trường schema (totalUsers, totalProfiles, totalPublicLinks, auditEventsLast7Days) trả về đúng giá trị; (4) `GetUsers_returns_200_and_excludes_sensitive_fields` — `AdminUserDto` không có PasswordHash/SecurityStamp/TokenHash/Allergies/MedicalNotes/EmergencyContacts cả ở type level và JSON response; (5) `AssignRole_returns_204_and_persists_role_and_audit_event` — gán role_admin vào DB và ghi AuditEvent `admin.role.assign`; (6) `RevokeRole_returns_204_and_removes_role_and_writes_audit_event` — thu hồi role_admin khỏi DB và ghi AuditEvent `admin.role.revoke`; (7) `Admin_cannot_revoke_own_admin_role` — tự thu hồi trả về 403, role còn nguyên trong DB; (8) `Sql_injection_in_userId_returns_not_found_and_db_is_intact` — LINQ parameterise query, injection trả về 404, bảng Users còn nguyên.
+- Test: `dotnet test` — 34/34 PASS (8 test admin mới + 26 test hiện có), 0 failures.
+
+16/06/2026 18:00:40
+- Tạo folder `backend/HelpId.Api/Admin/` với 4 file: `AdminDtos.cs` (AdminStatsDto, AdminUserDto, AdminUsersPageDto, AdminOperationResult), `AdminService.cs` (IAdminService + AdminService với LINQ/EF Core — GetStatsAsync, GetUsersAsync, AssignRoleAsync, RevokeRoleAsync), `AdminServiceCollectionExtensions.cs` (AddHelpIdAdminApi), `AdminEndpoints.cs` (4 endpoint GET /stats, GET /users, POST và DELETE /users/{userId}/roles/{roleId} — tất cả RequireAuthorization("AdminMetadata")).
+- Cập nhật `backend/HelpId.Api/Program.cs`: thêm `using HelpId.Api.Admin`, `builder.Services.AddHelpIdAdminApi()` và `app.MapAdminEndpoints()`.
+- Build: `dotnet build` — BUILD SUCCEEDED, 0 warnings, 0 errors.
+- Test: `dotnet test` — 34/34 PASS, 0 failures.
+
+16/06/2026 17:57:34
+- Tạo `harness-engineering/contract-admin.md`: contract đầy đủ cho tính năng admin Android — tính năng (dashboard stats, danh sách user, gán/thu hồi role), 4 API endpoint mới với request/response/status code, security rules (AdminMetadata policy, no health data, role whitelist, self-protection), Android UX (isAdmin() từ JWT decode, navigation route "admin", 21 string key cần thêm), cách gán admin thủ công qua SQLite.
+- Cập nhật `harness-engineering/uml-use-case-android.puml`: thêm actor Admin, 7 use-case admin mới (UC_DetectAdmin, UC_OpenAdmin, UC_AdminDashboard, UC_AdminListUsers, UC_AdminAssignRole, UC_AdminRevokeRole, UC_CallAdminApi) với quan hệ và note bảo mật.
+- Cập nhật `harness-engineering/uml-use-case-api.puml`: thêm actor AdminClient, 7 use-case admin API mới (4 endpoint + UC_EnforceAdminPolicy + UC_AdminAuditEvent) với quan hệ và note whitelist.
+- Xóa PNG cũ và render lại `uml-use-case-android.png` (711K) và `uml-use-case-api.png` (430K). `uml-use-case-website.png` giữ nguyên (không có thay đổi use-case web).
+
+16/06/2026 17:20:00
+- Thêm NHÓM 7 (PROMPT 32–41) vào `harness-engineering/copy-paste-prompts.txt`: quy trình đầy đủ để implement trang admin Android — contract, backend API, backend test, Android data layer, Android UI, Android navigation, integration, Android unit test, hardening/polish, checklist test thủ công.
+
+16/06/2026 17:03:47
+- Thêm unit test `HelpIdApiProfileRepositoryTest` (21 test cases): kiểm tra `parseProfile` (7 cases — parse đầy đủ field, fallback userId, JSON sai, body rỗng, null fields), `buildJson` (4 cases — field names, escape quote/backslash, empty lists), `esc` (2 cases), `getProfile` (4 cases — 200, 401→refresh+retry, IOException→Room cache, no token→Room cache), `updateProfile` (4 cases — 200 xóa pending flag, IOException vẫn ghi Room, IOException set pending flag, 500 set pending flag). Tất cả 21/21 PASS.
+
+16/06/2026 16:46:12
+- Sửa `EditProfileScreen.kt`: thay `FirebaseRepository` bằng `HelpIdApiProfileRepository` cho load/save hồ sơ. Load dùng `getProfile()` (không cần truyền userId). Save dùng `updateProfile()` bọc trong try/catch để `isSaving` luôn reset; `onSaveSuccess()`/`onBackClick()` được gọi trên main thread sau khi `withContext(Dispatchers.IO)` trả về. Thêm text lỗi hiển thị khi save thất bại. Thêm string key `save_error` vào đủ 6 locale. Build SUCCESSFUL.
+
+16/06/2026 16:41:58
+- Tạo `app/src/main/java/com/helpid/app/data/HelpIdApiProfileRepository.kt`: repository profile mới dùng backend JWT API thay Firebase. `getProfile()` gọi `GET /api/v1/profile` với access token, lưu Room, fallback Room/default khi lỗi mạng, tự refresh token khi 401. `updateProfile()` ghi Room trước, sau đó sync backend best-effort với pending flag khi offline. Không log token hay dữ liệu nhạy cảm. Build SUCCESSFUL.
+
+16/06/2026 16:02:01
+- Xác định root cause lỗi kết nối: điện thoại (`192.168.1.8`) và máy dev (`192.168.0.109`) ở hai subnet khác nhau. Lập kế hoạch fix bằng cách đổi mạng (phương án 1) hoặc dùng ngrok tunnel (phương án 2). Không có thay đổi code. Lưu kế hoạch vào `harness-engineering/ke-hoach.md`.
+
+16/06/2026 15:54:18
+- Sửa `ServerSettingsDialog.kt`: nút "Test connection" nay hiện tên exception + message chi tiết khi thất bại (ví dụ `CleartextNotPermittedException`, `ConnectException`) thay vì chỉ "Cannot connect". Cập nhật `AGENTS.md` thêm hướng dẫn đọc lỗi và kiểm tra subnet. Build SUCCESSFUL.
+
+16/06/2026 15:51:12
+- Lập kế hoạch sửa lỗi điện thoại thật không kết nối backend dù IP đúng: nguyên nhân chưa xác định rõ (APK cũ chưa có cleartext fix, hoặc phone khác subnet). Kế hoạch chính: thêm chi tiết exception vào dialog "Test connection" để chẩn đoán không cần logcat. Lưu tại `harness-engineering/ke-hoach.md`.
+
+16/06/2026 15:24:45
+- Sửa lỗi HTTP cleartext bị block khi kết nối điện thoại thật → backend LAN: tạo `app/src/debug/res/xml/network_security_config.xml` cho debug build với `cleartextTrafficPermitted="true"` toàn bộ host; production build (`src/main`) vẫn HTTPS-only. Build SUCCESSFUL.
+
+16/06/2026 14:57:37
+- Sửa lỗi login điện thoại thật báo "Không có kết nối": (1) `run-backend.sh` thêm `--urls http://0.0.0.0:5080` để backend nhận kết nối LAN; (2) `HelpIdApiAuthRepository.kt` giảm `TIMEOUT_MS` từ 20_000 xuống 8_000; (3) thêm `ServerSettingsDialog.kt` — dialog cấu hình và test URL backend từ điện thoại; (4) `LoginScreen.kt` và `RegisterScreen.kt` thêm icon ⚙ mở dialog; (5) thêm 7 string key vào 6 locale; (6) `AGENTS.md` thêm hướng dẫn test LAN. Build/test/lint PASS.
+
+16/06/2026 14:50:35
+- Lập kế hoạch sửa lỗi login trên điện thoại thật báo "Không có kết nối": root cause là `DEFAULT_DEBUG_URL=10.0.2.2` chỉ hoạt động trên emulator, backend bind localhost không nhận LAN, timeout 20s quá dài. Plan lưu tại `harness-engineering/ke-hoach.md`.
+
+16/06/2026 14:05:00
+- Sửa `run-backend.sh`: EF Core resolve path SQLite từ thư mục project thay vì repo root; fix bằng cách luôn export `ConnectionStrings__HelpIdDb` với absolute path (`$SCRIPT_DIR/backend/HelpId.Api/App_Data/helpid-dev.db`) trong script thay vì đọc từ `.env.local`. Cập nhật `.env.local.example` bỏ trường này và giải thích tại sao.
+
+16/06/2026 14:00:00
+- Tạo `run-backend.sh`: script một lệnh để chạy backend local — source `backend/.env.local`, validate 4 biến bắt buộc, tạo thư mục `App_Data`, chạy EF migration rồi `dotnet run`. Thêm `backend/.env.local.example` với giá trị dev mặc định. Cập nhật `.gitignore` ignore `backend/.env.local`.
+
+16/06/2026 13:07:00
+- Rà soát cuối tính năng biometric: sửa accessibility thiếu `contentDescription` cho `Switch` trong `BiometricSettingsCard` (`EditProfileScreen.kt`); cập nhật `harness-engineering/android.md` thêm section biometric với luồng auth state và quy tắc bắt buộc; cập nhật `harness-engineering/bao-mat-du-lieu.md` thêm section "Lưu trữ biometric" ghi rõ không lưu template, không gửi lên backend, hashing userId trong prefs key; cập nhật `harness-engineering/quy-trinh-test.md` thêm pattern tách pure function để unit test mà không cần mock Android context. Build/test/lint PASS, git diff --check sạch.
+
+16/06/2026 12:56:33
+- Tách logic quyết định auth state thành hàm thuần `resolveAuthState` trong `BiometricAuthDecision.kt`; refactor `authenticatedOrBiometricLocked` thành wrapper gọi hàm này. Thêm `BiometricAuthDecisionTest` (11 test cases toàn bộ nhánh), bổ sung coverage cho `BiometricUtilsTest` (thêm 4 test: SecurityUpdateRequired/Unsupported availability, ERROR_CANCELED/ERROR_NEGATIVE_BUTTON/ERROR_HW_UNAVAILABLE/ERROR_NO_DEVICE_CREDENTIAL error codes, LockoutPermanent/HardwareUnavailable/NoDeviceCredential messageResId), bổ sung `BiometricPreferenceStoreTest` (thêm 6 test: sha256Hex length/determinism, key isolation user A ≠ user B, enabled ≠ lastUnlocked key, stable across calls). Tổng 59 test, 0 failure.
+
+16/06/2026 11:48:58
+- Sửa `authenticatedOrBiometricLocked` trong `MainActivity`: truyền đúng tham số `requiresRefresh` thay vì hardcode `true`. Khi access token còn hạn (`requiresRefresh = false`), biometric success chuyển thẳng sang `Authenticated` mà không gọi refresh thừa; khi access token hết hạn (`requiresRefresh = true`), vẫn phải refresh backend và xử lý 401/403 đúng như thiết kế.
+
+16/06/2026 11:34:26
+- Siết luồng biometric unlock trong `MainActivity`: nếu biometric enabled thì biometric chỉ mở khóa UI local, sau success vẫn gọi refresh backend để kiểm tra refresh token revoke/expiry trước khi vào private screens; refresh 401/403 clear token và biometric setting theo user, offline chỉ vào `LocalCacheOnly` khi có Room cache và không sync remote.
+
+16/06/2026 11:31:00
+- Implement luồng khóa biometric khi mở app: thêm `AuthState.BiometricLocked` và màn hình unlock trong `MainActivity`, chỉ refresh token/gửi API sau biometric success, giữ user ở màn hình khóa khi cancel/fail, fallback login bằng mật khẩu, logout/refresh 401-403 clear token và biometric setting theo user, thêm string unlock/try-again/use-password cho toàn bộ locale.
+
+16/06/2026 11:26:07
+- Thêm UI bật/tắt xác thực vân tay trong `EditProfileScreen` cho user đã đăng nhập: bật yêu cầu `BiometricPrompt` thành công trước khi lưu `BiometricPreferenceStore`, tắt có dialog xác nhận, xử lý unavailable/not enrolled/lockout/cancel/system error bằng stringResource toàn bộ locale, đổi `MainActivity` sang `FragmentActivity` để prompt hoạt động; không chạm luồng SOS.
+
+16/06/2026 11:18:58
+- Implement utility biometric Android: mở rộng `BiometricUtils` với kiểm tra availability typed, prompt `BiometricPrompt` không trả raw error, fallback device credential trên Android 11+ theo policy, thêm `BiometricPreferenceStore` lưu bật/tắt và last unlock trong `SecurePrefs` bằng key hash theo user id, thêm permission `USE_BIOMETRIC`, string lỗi biometric cho toàn bộ locale và unit test liên quan.
+
+16/06/2026 11:09:38
+- Rà soát `backend/HelpId.Api/` và Android token flow cho thiết kế xác thực vân tay; cập nhật `harness-engineering/thiet-ke-xac-thuc-van-tay.md` để kết luận biometric chỉ là local unlock cho token/session đã có, không gửi/lưu biometric template và không cần backend API/schema/migration mới.
+
+16/06/2026 11:07:01
+- Thêm tài liệu thiết kế xác thực vân tay Android tại `harness-engineering/thiet-ke-xac-thuc-van-tay.md`, cập nhật UML use-case Android với luồng bật/tắt và mở khóa bằng biometric local, render lại 3 ảnh UML use-case Android/Website/API; không thay đổi runtime code.
+
+16/06/2026 10:37:55
+- Cập nhật `harness-engineering/uml-database.puml` để ghi rõ role RBAC seed hiện tại chỉ gồm `role_user`/`User` (người dùng app/chủ hồ sơ) và `role_admin`/`Admin` (quản trị hệ thống), chưa có role `Doctor` hoặc `Patient` riêng; xóa ảnh UML database cũ và render lại `harness-engineering/uml-database.png`.
+
+16/06/2026 09:48:39
+- Đổi tên `harness-engineering/prompts-dang-ky-dang-nhap.txt` thành `harness-engineering/copy-paste-prompts.txt`, cập nhật tiêu đề/ghi chú vận hành, bổ sung nhóm prompt 21-28 cho tính năng xác thực vân tay Android theo thứ tự contract, backend decision, Android implementation, integration, test và hardening; cập nhật `AGENTS.md` và `harness-engineering/README.md` để trỏ tới file prompt mới.
+
+16/06/2026 09:38:14
+- Cập nhật UML database diagram để thể hiện rõ phân quyền backend: seed RBAC User/Admin, danh sách permission, quan hệ cấp quyền, JWT claim/policy enforce, ownership check và public profile access bằng public key + JWT ngắn hạn; xóa ảnh `harness-engineering/uml-database.png` cũ rồi render lại ảnh mới; cập nhật `AGENTS.md` bắt buộc UML database phải mô tả bảng quyền, seed quyền, quan hệ cấp quyền và tầng enforce khi database có phân quyền/RBAC/ownership/public access.
+
+16/06/2026 09:23:25
+- Cập nhật `AGENTS.md` yêu cầu mọi thời gian ghi vào tài liệu, changelog, testcase hoặc kế hoạch phải lấy bằng đúng lệnh `date '+%d/%m/%Y %H:%M:%S'`, tuyệt đối không bịa hoặc tự ước lượng thời gian.
+
+16/06/2026 09:13:58
+- Tạo UML database diagram cho toàn bộ dữ liệu hiện có: backend SQLite EF Core (`Users`, auth/session, profile, public links, audit, RBAC), Android Room `helpid_database.user_profile`, và Firestore legacy `users/{uid}`/`publicKeys/{publicKey}`; thêm nguồn PlantUML `harness-engineering/uml-database.puml`, render ảnh `harness-engineering/uml-database.png`, và cập nhật `AGENTS.md` bắt buộc khi thiết kế database thay đổi phải cập nhật `.puml`, xóa ảnh cũ rồi render ảnh mới.
+
 15/06/2026 02:55:07
 - Cập nhật tài liệu vận hành sau khi auth/backend mới chạy ổn: `AGENTS.md`, tài liệu harness và `backend/HelpId.Api/README.md` bổ sung backend ASP.NET Core/EF Core SQLite, API contract, cách chạy backend, biến môi trường `HELPID_*`/`HELPID_BACKEND_URL`, quy trình migration/test, trạng thái Firebase legacy chưa gỡ; xác nhận 3 PNG PlantUML use-case đã tồn tại và không render lại vì `.puml` không đổi; chạy `git diff --check` pass.
 

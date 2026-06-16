@@ -1,3 +1,4 @@
+using HelpId.Api.Admin;
 using HelpId.Api.Auth;
 using HelpId.Api.Data;
 using HelpId.Api.EmergencyLinks;
@@ -18,6 +19,7 @@ builder.Services.AddDbContext<HelpIdDbContext>(options =>
 builder.Services.AddHelpIdAuthApi(builder.Configuration);
 builder.Services.AddHelpIdProfileApi(builder.Configuration);
 builder.Services.AddHelpIdEmergencyLinkApi(builder.Configuration);
+builder.Services.AddHelpIdAdminApi();
 builder.Services.AddHelpIdAuthorization();
 
 var app = builder.Build();
@@ -59,6 +61,7 @@ app.MapGet("/health", () =>
 app.MapAuthEndpoints();
 app.MapProfileEndpoints();
 app.MapEmergencyLinkEndpoints();
+app.MapAdminEndpoints();
 
 app.Run();
 

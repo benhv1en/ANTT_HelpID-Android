@@ -19,7 +19,9 @@ Dự án xử lý dữ liệu nhạy cảm: tên, nhóm máu, địa chỉ, dị
 - Nếu sau khi đã có kế hoạch người dùng yêu cầu sửa code/tài liệu/cấu hình, phải tự động đọc lại `harness-engineering/ke-hoach.md` trước khi sửa, rồi thực hiện theo kế hoạch hoặc nói rõ điểm cần điều chỉnh nếu bối cảnh đã thay đổi.
 - Nếu người dùng chỉ yêu cầu lập kế hoạch, không tự ý sửa code/cấu hình ngoài việc ghi kế hoạch và cập nhật tài liệu vận hành nếu được yêu cầu.
 - Sau mỗi prompt yêu cầu sửa đổi code/tài liệu/cấu hình, khi hoàn thành phải cập nhật `CHANGELOG.md` ở cùng cấp với `AGENTS.md`. Entry mới luôn chèn lên đầu file, không append xuống cuối file, theo format ngày giờ bình thường `dd/mm/yyyy hh:mm:ss` trên dòng đầu và dòng tiếp theo là `- nội_dung_sửa_đổi`.
+- Mọi thời gian ghi vào tài liệu, changelog, testcase hoặc kế hoạch phải được lấy chính xác bằng lệnh `date '+%d/%m/%Y %H:%M:%S'`; tuyệt đối không được bịa hoặc tự ước lượng thời gian.
 - Khi bất cứ use-case nào thay đổi, bao gồm actor, luồng người dùng, route web, API, SOS, QR/NFC, public profile, quyền hoặc hành vi chính của app, phải cập nhật và render UML use-case thành 3 sơ đồ riêng theo system boundary, không render chung cả 3 vào một ảnh: `harness-engineering/uml-use-case-android.puml` -> `harness-engineering/uml-use-case-android.png` cho `Ứng dụng Android HelpID`; `harness-engineering/uml-use-case-website.puml` -> `harness-engineering/uml-use-case-website.png` cho `Website Helper ID`; `harness-engineering/uml-use-case-api.puml` -> `harness-engineering/uml-use-case-api.png` cho `Vercel Serverless API`. Trước khi render lại phải xóa các ảnh UML use-case cũ tương ứng để tránh artifact lỗi thời.
+- Khi bất cứ database nào thay đổi về mặt thiết kế, bao gồm entity/index/constraint/migration EF Core trong `backend/HelpId.Api`, schema/version/migration/converter Room trong `app/src/main/java/com/helpid/app/data/local`, hoặc shape collection/document Firestore legacy trong Android/Vercel API, phải cập nhật UML database diagram `harness-engineering/uml-database.puml` rồi render lại `harness-engineering/uml-database.png`. Nếu database có phân quyền/RBAC/ownership/public access thì UML database phải thể hiện bảng quyền, seed role/permission, quan hệ cấp quyền và tầng enforce tương ứng. Trước khi render lại phải xóa ảnh UML database cũ để tránh artifact lỗi thời.
 - Không sửa file nhị phân hoặc artifact sinh ra nếu không được yêu cầu: `*.png`, `gradle-wrapper.jar`, `helper-id/package-lock.json` chỉ sửa khi dependency thật sự thay đổi.
 - Không commit secret. Các file/env nhạy cảm gồm `app/google-services.json`, `helper-id/.env*`, Firebase service account, JWT secret, Gemini key.
 - Không ghi log dữ liệu y tế, số điện thoại, vị trí, Firebase ID token, JWT token hoặc public profile token.
@@ -63,6 +65,16 @@ dotnet ef migrations list --project backend/HelpId.Api/HelpId.Api.csproj --start
 dotnet ef database update --project backend/HelpId.Api/HelpId.Api.csproj --startup-project backend/HelpId.Api/HelpId.Api.csproj
 dotnet run --project backend/HelpId.Api/HelpId.Api.csproj
 ```
+
+Để test trên điện thoại thật (không phải emulator):
+
+1. Chạy `./run-backend.sh` — script đã bind `0.0.0.0:5080` nên điện thoại cùng LAN có thể kết nối.
+2. Tìm LAN IP máy dev: `hostname -I | awk '{print $1}'`
+3. Trong app → màn hình Login hoặc Register → nhấn icon ⚙ góc phải dưới → nhập `http://<LAN_IP>:5080` → Lưu → Kiểm tra kết nối.
+4. Nếu "Test connection" báo lỗi: đọc dòng chi tiết bên dưới để xác định nguyên nhân:
+   - `CleartextNotPermittedException`: APK chưa có cleartext fix → rebuild và cài lại APK mới nhất.
+   - `ConnectException` / `SocketTimeoutException`: điện thoại không cùng subnet → vào Settings → WiFi → xem IP điện thoại, phải cùng `192.168.0.x` với máy dev; nếu khác subnet thì kết nối cùng WiFi.
+   - `UnknownHostException`: URL sai định dạng (dùng IP thay vì hostname).
 
 Backend local cần secret ký token qua env, không lưu vào `appsettings*.json`:
 
@@ -151,3 +163,6 @@ Các hướng dẫn chi tiết nằm trong `harness-engineering/`:
 - `contract-dang-ky-dang-nhap.md`: contract và runbook auth/backend mới.
 - `bao-mat-du-lieu.md`: ràng buộc bảo mật và quyền riêng tư.
 - `checklist-truoc-khi-tra-loi.md`: checklist trước khi kết thúc task.
+- `copy-paste-prompts.txt`: prompt copy-paste theo thứ tự triển khai cho auth/backend/web và các tính năng bổ sung như xác thực vân tay.
+- `thiet-ke-xac-thuc-van-tay.md`: thiết kế xác thực vân tay Android, threat model, fallback, token flow và test plan.
+- `uml-database.puml` và `uml-database.png`: UML database diagram cho backend SQLite, Room local và Firestore legacy.

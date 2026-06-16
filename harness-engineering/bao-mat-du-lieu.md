@@ -40,6 +40,29 @@ Khi sửa:
 
 - Không bỏ prefix `enc::`.
 - Không lưu bản rõ vào file mới.
+
+## Lưu trữ biometric
+
+`BiometricPreferenceStore` dùng `EncryptedSharedPreferences` (file `helpid_biometric_prefs`) để lưu trạng thái bật/tắt và timestamp mở khóa gần nhất theo user.
+
+Dữ liệu lưu:
+
+- `biometric_enabled_user_{sha256(userId)}`: boolean — user đã bật hay chưa.
+- `last_unlocked_at_epoch_ms_user_{sha256(userId)}`: Long — lần mở khóa gần nhất.
+
+KHÔNG được lưu:
+
+- Vân tay/biometric template.
+- Biometric identifier từ hệ thống.
+- Access token hoặc refresh token trong store này.
+- Email, tên, số điện thoại, dữ liệu y tế.
+
+Quy tắc bắt buộc:
+
+- `BiometricPrompt.AuthenticationResult` không được forward ra ngoài callback; callback chỉ gọi `onSuccess()`.
+- Không truyền biometric result, error code, hay userId qua log.
+- Khi logout hoặc refresh trả 401/403, phải gọi `biometricStore.clearForUser(userId)` để tránh session biometric của user cũ ảnh hưởng user mới.
+- UserId được hash SHA-256 trước khi dùng làm suffix của key để tránh lộ định danh trong prefs key.
 - Không đổi alias key nếu không có migration dữ liệu.
 
 ## Backend auth/API mới

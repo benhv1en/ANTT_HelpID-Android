@@ -77,6 +77,23 @@
     <string name="biometric_access_subtitle">Xác thực để xem thông tin khẩn cấp</string>
     <string name="biometric_cancel">Hủy</string>
     <string name="biometric_auth_failed">Xác thực thất bại</string>
+    <string name="biometric_not_available">Thiết bị này không hỗ trợ mở khóa bằng vân tay.</string>
+    <string name="biometric_not_enrolled">Hãy thêm vân tay trong cài đặt hệ thống trước.</string>
+    <string name="biometric_locked_out">Thử quá nhiều lần. Hãy thử lại sau.</string>
+    <string name="biometric_settings_title">Mở khóa bằng vân tay</string>
+    <string name="biometric_settings_body">Yêu cầu vân tay hoặc khóa thiết bị khi mở màn hình được bảo vệ của HelpID trên thiết bị này.</string>
+    <string name="biometric_disable_confirm_title">Tắt mở khóa bằng vân tay?</string>
+    <string name="biometric_disable_confirm_body">HelpID sẽ ngừng hỏi xác thực sinh trắc học trên thiết bị này.</string>
+    <string name="biometric_turn_off">TẮT</string>
+    <string name="biometric_keep_on">GIỮ BẬT</string>
+    <string name="biometric_enabled">Đã bật mở khóa bằng vân tay.</string>
+    <string name="biometric_disabled">Đã tắt mở khóa bằng vân tay.</string>
+    <string name="biometric_canceled">Đã hủy xác thực.</string>
+    <string name="biometric_system_error">Tạm thời không thể dùng mở khóa bằng vân tay.</string>
+    <string name="biometric_unlock_title">Mở khóa HelpID</string>
+    <string name="biometric_unlock_subtitle">Dùng vân tay hoặc khóa thiết bị để tiếp tục.</string>
+    <string name="biometric_try_again">THỬ LẠI</string>
+    <string name="biometric_use_password">Dùng mật khẩu</string>
 
     <!-- Edit Profile Screen -->
     <string name="edit_profile">Chỉnh sửa hồ sơ</string>
@@ -190,4 +207,43 @@
     <string name="auth_logout_confirm_no">HỦY</string>
     <string name="auth_cd_show_password">Hiện mật khẩu</string>
     <string name="auth_cd_hide_password">Ẩn mật khẩu</string>
+
+    <!-- Server settings dialog -->
+    <string name="server_settings">Cài đặt máy chủ</string>
+    <string name="server_url_label">Địa chỉ máy chủ</string>
+    <string name="server_url_hint">http://192.168.x.x:5080</string>
+    <string name="server_url_save">Lưu</string>
+    <string name="server_url_test">Kiểm tra kết nối</string>
+    <string name="server_url_test_ok">Kết nối thành công</string>
+    <string name="server_url_test_fail">Không thể kết nối</string>
+    <string name="save_error">Lưu thất bại. Vui lòng thử lại.</string>
+
+    <!-- Admin Screen -->
+    <string name="admin_screen_title">Quản trị</string>
+    <string name="admin_tab_dashboard">Tổng quan</string>
+    <string name="admin_tab_users">Người dùng</string>
+    <string name="admin_stat_total_users">Tổng số người dùng</string>
+    <string name="admin_stat_total_profiles">Hồ sơ đã tạo</string>
+    <string name="admin_stat_total_links">Link công khai đã mint</string>
+    <string name="admin_stat_audit_7d">Sự kiện audit (7 ngày)</string>
+    <string name="admin_user_role_label">Vai trò</string>
+    <string name="admin_user_locked">Bị khóa</string>
+    <string name="admin_user_active">Hoạt động</string>
+    <string name="admin_assign_admin_role">Cấp Admin</string>
+    <string name="admin_revoke_admin_role">Thu hồi Admin</string>
+    <string name="admin_action_success">Thành công</string>
+    <string name="admin_action_loading">Đang xử lý…</string>
+    <string name="admin_error_unauthorized">Bạn không có quyền quản trị.</string>
+    <string name="admin_error_network">Lỗi mạng. Vui lòng thử lại.</string>
+    <string name="admin_error_not_found">Không tìm thấy người dùng.</string>
+    <string name="admin_self_revoke_blocked">Bạn không thể tự thu hồi quyền admin của mình.</string>
+    <string name="admin_entry_button">Trang quản trị</string>
+    <string name="admin_prev_page">Trước</string>
+    <string name="admin_next_page">Tiếp</string>
+    <string name="admin_no_users">Không tìm thấy người dùng.</string>
+    <string name="admin_dismiss">Đóng</string>
+    <string name="admin_role_empty">Không có</string>
+    <string name="admin_page_of">%1$d / %2$d</string>
+    <string name="admin_cd_assign_role">Cấp admin cho %s</string>
+    <string name="admin_cd_revoke_role">Thu hồi admin của %s</string>
 </resources>

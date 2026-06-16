@@ -77,6 +77,23 @@
     <string name="biometric_access_subtitle">Authenticate to view emergency information</string>
     <string name="biometric_cancel">Cancel</string>
     <string name="biometric_auth_failed">Authentication failed</string>
+    <string name="biometric_not_available">Fingerprint unlock is not available on this device.</string>
+    <string name="biometric_not_enrolled">Add a fingerprint in system settings first.</string>
+    <string name="biometric_locked_out">Too many attempts. Try again later.</string>
+    <string name="biometric_settings_title">Fingerprint unlock</string>
+    <string name="biometric_settings_body">Require fingerprint or device credential when opening protected HelpID screens on this device.</string>
+    <string name="biometric_disable_confirm_title">Turn off fingerprint unlock?</string>
+    <string name="biometric_disable_confirm_body">HelpID will stop asking for biometric unlock on this device.</string>
+    <string name="biometric_turn_off">TURN OFF</string>
+    <string name="biometric_keep_on">KEEP ON</string>
+    <string name="biometric_enabled">Fingerprint unlock is on.</string>
+    <string name="biometric_disabled">Fingerprint unlock is off.</string>
+    <string name="biometric_canceled">Authentication was canceled.</string>
+    <string name="biometric_system_error">Fingerprint unlock is temporarily unavailable.</string>
+    <string name="biometric_unlock_title">Unlock HelpID</string>
+    <string name="biometric_unlock_subtitle">Use fingerprint or device credential to continue.</string>
+    <string name="biometric_try_again">TRY AGAIN</string>
+    <string name="biometric_use_password">Use password instead</string>
 
     <!-- Edit Profile Screen -->
     <string name="edit_profile">Edit Profile</string>
@@ -190,4 +207,43 @@
     <string name="auth_logout_confirm_no">CANCEL</string>
     <string name="auth_cd_show_password">Show password</string>
     <string name="auth_cd_hide_password">Hide password</string>
+
+    <!-- Server settings dialog -->
+    <string name="server_settings">Server settings</string>
+    <string name="server_url_label">Server URL</string>
+    <string name="server_url_hint">http://192.168.x.x:5080</string>
+    <string name="server_url_save">Save</string>
+    <string name="server_url_test">Test connection</string>
+    <string name="server_url_test_ok">Connected</string>
+    <string name="server_url_test_fail">Cannot connect</string>
+    <string name="save_error">Save failed. Please try again.</string>
+
+    <!-- Admin Screen -->
+    <string name="admin_screen_title">Admin</string>
+    <string name="admin_tab_dashboard">Dashboard</string>
+    <string name="admin_tab_users">Users</string>
+    <string name="admin_stat_total_users">Total users</string>
+    <string name="admin_stat_total_profiles">Profiles created</string>
+    <string name="admin_stat_total_links">Public links minted</string>
+    <string name="admin_stat_audit_7d">Audit events (7 days)</string>
+    <string name="admin_user_role_label">Roles</string>
+    <string name="admin_user_locked">Locked</string>
+    <string name="admin_user_active">Active</string>
+    <string name="admin_assign_admin_role">Grant Admin</string>
+    <string name="admin_revoke_admin_role">Revoke Admin</string>
+    <string name="admin_action_success">Done</string>
+    <string name="admin_action_loading">Processing…</string>
+    <string name="admin_error_unauthorized">You do not have admin access.</string>
+    <string name="admin_error_network">Network error. Please try again.</string>
+    <string name="admin_error_not_found">User not found.</string>
+    <string name="admin_self_revoke_blocked">You cannot remove your own admin role.</string>
+    <string name="admin_entry_button">Admin Panel</string>
+    <string name="admin_prev_page">Previous</string>
+    <string name="admin_next_page">Next</string>
+    <string name="admin_no_users">No users found.</string>
+    <string name="admin_dismiss">Dismiss</string>
+    <string name="admin_role_empty">None</string>
+    <string name="admin_page_of">%1$d / %2$d</string>
+    <string name="admin_cd_assign_role">Grant admin to %s</string>
+    <string name="admin_cd_revoke_role">Revoke admin from %s</string>
 </resources>
