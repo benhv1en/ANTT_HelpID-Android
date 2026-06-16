@@ -21,6 +21,7 @@ title Website Helper ID - Sơ đồ UML Use-case
 actor "Người phản hồi / cứu hộ\n(quét QR hoặc NFC)" as Responder
 actor "Khách truy cập web" as WebVisitor
 actor "Client gọi Gemini proxy" as GeminiClient
+actor "Quản trị viên\n(Admin web)" as WebAdmin
 
 actor "Backend HelpID API\nASP.NET Core" as BackendApi <<external>>
 actor "Firebase Auth / Firestore\nlegacy mint" as FirebaseLegacy <<external>>
@@ -32,6 +33,13 @@ rectangle "Website Helper ID\n(React 19 + Vite 6)" as WebApp {
   usecase "Gọi GET /api/v1/public/profile\nqua backend" as UC_WebFetchPublicProfile
   usecase "Hiển thị lỗi link\nthiếu / hết hạn / revoke" as UC_WebPublicProfileError
   usecase "Mở deep link về Android app" as UC_OpenDeepLink
+
+  usecase "Đăng nhập Admin\n/admin/login" as UC_WebAdminLogin
+  usecase "Kiểm tra session\n(sessionStorage token)" as UC_WebAdminRouteGuard
+  usecase "Xem Dashboard thống kê\n/admin" as UC_WebAdminDashboard
+  usecase "Xem danh sách user + phân trang\n/admin/users" as UC_WebAdminUsers
+  usecase "Gán / thu hồi role Admin\ntừ bảng danh sách" as UC_WebAdminToggleRole
+  usecase "Logout khỏi Admin panel\nvà revoke token" as UC_WebAdminLogout
 }
 
 rectangle "Vercel Serverless API" as Serverless {
@@ -40,12 +48,23 @@ rectangle "Vercel Serverless API" as Serverless {
   usecase "Proxy Gemini\nPOST /api/gemini" as UC_ProxyGemini
   usecase "Kiểm tra bearer token\nGemini proxy" as UC_CheckGeminiBearer
   usecase "Kiểm tra prompt\nvà timeout" as UC_ValidateGeminiPrompt
+
+  usecase "Proxy đăng nhập Admin\nPOST /api/admin-login" as UC_ProxyAdminLogin
+  usecase "Proxy stats admin\nGET /api/admin-stats" as UC_ProxyAdminStats
+  usecase "Proxy danh sách user\nGET /api/admin-users" as UC_ProxyAdminUsers
+  usecase "Proxy gán/thu hồi role\nPOST|DELETE /api/admin-role" as UC_ProxyAdminRole
+  usecase "Proxy logout Admin\nPOST /api/admin-logout" as UC_ProxyAdminLogout
 }
 
 Responder -- UC_OpenPublicProfile
 Responder -- UC_OpenDeepLink
 WebVisitor -- UC_ViewMarketing
 GeminiClient -- UC_ProxyGemini
+WebAdmin -- UC_WebAdminLogin
+WebAdmin -- UC_WebAdminDashboard
+WebAdmin -- UC_WebAdminUsers
+WebAdmin -- UC_WebAdminToggleRole
+WebAdmin -- UC_WebAdminLogout
 
 UC_OpenPublicProfile ..> UC_WebFetchPublicProfile : <<include>>
 UC_WebPublicProfileError ..> UC_OpenPublicProfile : <<extend>>
@@ -54,6 +73,20 @@ UC_WebFetchPublicProfile ..> UC_LegacyProfile : <<extend>>
 UC_ProxyGemini ..> UC_ValidateGeminiPrompt : <<include>>
 UC_CheckGeminiBearer ..> UC_ProxyGemini : <<extend>>
 UC_LegacyMint ..> UC_LegacyProfile : <<extend>>
+
+UC_WebAdminLogin ..> UC_ProxyAdminLogin : <<include>>
+UC_WebAdminDashboard ..> UC_WebAdminRouteGuard : <<include>>
+UC_WebAdminDashboard ..> UC_ProxyAdminStats : <<include>>
+UC_WebAdminUsers ..> UC_WebAdminRouteGuard : <<include>>
+UC_WebAdminUsers ..> UC_ProxyAdminUsers : <<include>>
+UC_WebAdminToggleRole ..> UC_ProxyAdminRole : <<include>>
+UC_WebAdminLogout ..> UC_ProxyAdminLogout : <<include>>
+
+UC_ProxyAdminLogin ..> BackendApi : <<include>>
+UC_ProxyAdminStats ..> BackendApi : <<include>>
+UC_ProxyAdminUsers ..> BackendApi : <<include>>
+UC_ProxyAdminRole ..> BackendApi : <<include>>
+UC_ProxyAdminLogout ..> BackendApi : <<include>>
 
 BackendApi -- UC_WebFetchPublicProfile
 FirebaseLegacy -- UC_LegacyMint
@@ -71,5 +104,27 @@ note bottom of UC_LegacyMint
   Legacy Firebase mint vẫn tồn tại
   cho backward compatibility.
   Android mới dùng backend mint.
+end note
+
+note right of UC_WebAdminLogin
+  Token lưu trong sessionStorage (không localStorage).
+  Tự xóa khi đóng tab.
+  HELPID_BACKEND_URL chỉ ở process.env.*,
+  không vào Vite bundle.
+  /admin/* có X-Robots-Tag: noindex.
+end note
+
+note right of UC_WebAdminRouteGuard
+  Kiểm tra sessionStorage còn token hợp lệ.
+  Nếu không → redirect /admin/login.
+  401/403 từ proxy → clear sessionStorage
+  + redirect /admin/login.
+end note
+
+note bottom of UC_ProxyAdminRole
+  roleId whitelist: ["role_user","role_admin"].
+  userId max 64 ký tự.
+  Admin không thể thu hồi role_admin
+  của chính mình (backend trả 403).
 end note
 @enduml

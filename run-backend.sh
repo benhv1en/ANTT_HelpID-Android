@@ -41,6 +41,18 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     exit 1
 fi
 
+# Kill any process that is LISTENING on port 5080 (not mere clients/tunnels connected to it)
+LISTENER_PID=$(ss -Htlnp 'sport = :5080' | grep -oP 'pid=\K[0-9]+' | head -1)
+if [[ -n "$LISTENER_PID" ]]; then
+    echo "[run-backend] Killing existing listener on port 5080 (pid $LISTENER_PID)..."
+    kill -9 "$LISTENER_PID" 2>/dev/null || true
+    # Wait until the port is actually released (up to 10 s)
+    for i in $(seq 1 10); do
+        ss -Htlnp 'sport = :5080' | grep -q . || break
+        sleep 1
+    done
+fi
+
 # Apply EF Core migrations
 echo "[run-backend] Applying database migrations..."
 dotnet ef database update \
@@ -49,5 +61,5 @@ dotnet ef database update \
 
 # Start the backend
 echo "[run-backend] Starting backend..."
-echo "[run-backend] Health check: curl http://127.0.0.1:5080/health"
+echo "[run-backend] Health check: curl https://evil-paws-try.loca.lt/health"
 dotnet run --project "$PROJECT" --urls "http://0.0.0.0:5080"

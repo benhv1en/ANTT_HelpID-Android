@@ -8,10 +8,13 @@ import { Footer } from './components/Footer';
 import { StickyCTA } from './components/StickyCTA';
 import { EmergencyProfilePage } from './components/EmergencyProfilePage';
 import { TermsOfService } from './components/TermsOfService';
-
 import { PrivacyAndCookies } from './components/PrivacyAndCookies';
-
 import { Mission } from './components/Mission';
+import { AdminLoginPage } from './components/admin/AdminLoginPage';
+import { AdminRoute } from './components/admin/AdminRoute';
+import { AdminLayout } from './components/admin/AdminLayout';
+import { AdminDashboardPage } from './components/admin/AdminDashboardPage';
+import { AdminUsersPage } from './components/admin/AdminUsersPage';
 
 const MarketingSite: React.FC = () => {
   const location = useLocation();
@@ -48,6 +51,13 @@ const App: React.FC = () => {
   return (
     <Routes>
       <Route path="/e/:publicKey" element={<EmergencyProfilePage />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<AdminRoute />}>
+        <Route element={<AdminLayout />}>
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+        </Route>
+      </Route>
       <Route path="/*" element={<MarketingSite />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -6,7 +6,7 @@ Ngày lập: 16/06/2026
 
 ## 1. Phạm vi tính năng
 
-Trang admin chỉ implement trên **Android app**. Không có admin panel trên web (`helper-id/`). Admin vẫn là user thông thường của app; sự khác biệt duy nhất là role `role_admin` trong JWT và DB, mở khóa các endpoint và màn hình riêng.
+Trang admin implement trên **Android app** và **web (`helper-id/`)**. Admin vẫn là user thông thường; sự khác biệt duy nhất là role `role_admin` trong JWT và DB, mở khóa các endpoint và màn hình/route riêng.
 
 ### 1.1 Dashboard thống kê
 
@@ -274,6 +274,88 @@ sqlite3 backend/HelpId.Api/App_Data/helpid-dev.db \
 
 - Xem chi tiết hồ sơ y tế của user khác — admin không được xem, và API không trả
 - Xóa tài khoản user — chưa implement
-- Admin panel trên web (`helper-id/`) — không có
 - Export audit log — không có
 - Thông báo email khi bị gán/thu hồi admin — không có
+
+---
+
+## 7. Web Admin Panel (`helper-id/`)
+
+### 7.1 Routes
+
+| Route | Mô tả |
+|---|---|
+| `/admin/login` | Trang đăng nhập admin |
+| `/admin` | Dashboard thống kê (4 stat card) |
+| `/admin/users` | Danh sách user + phân trang + gán/thu hồi role |
+
+Tất cả route `/admin/*` nằm **ngoài** `MarketingSite` layout — không có Navbar/Footer marketing. Truy cập `/admin` hoặc `/admin/users` khi chưa có session → redirect về `/admin/login`.
+
+### 7.2 Auth flow
+
+```
+Browser              Vercel Proxy          Backend API
+  |                       |                     |
+  |-- POST /api/admin-login (email, pwd) ------->|
+  |                       |-- POST /api/v1/auth/login -->|
+  |                       |<-- { accessToken, refreshToken, ... } --|
+  |<-- { accessToken, refreshToken, ... } --------|
+  |   (lưu vào sessionStorage)
+  |
+  |-- GET /api/admin-stats (Authorization: Bearer <token>) -->|
+  |                       |-- GET /api/v1/admin/stats ------>|
+  |                       |<-- { totalUsers, ... } ----------|
+  |<-- { totalUsers, ... } ----------------------------------------|
+```
+
+Token lưu trong **`sessionStorage`** (không phải `localStorage`):
+- Tự xóa khi đóng tab hoặc trình duyệt
+- Không persist qua session mới
+
+### 7.3 Vercel serverless proxy (5 function)
+
+| File | Method | Backend endpoint |
+|---|---|---|
+| `api/admin-login.js` | POST | `POST /api/v1/auth/login` |
+| `api/admin-stats.js` | GET | `GET /api/v1/admin/stats` |
+| `api/admin-users.js` | GET | `GET /api/v1/admin/users?page=&size=` |
+| `api/admin-role.js` | POST / DELETE | `POST/DELETE /api/v1/admin/users/{userId}/roles/{roleId}` |
+| `api/admin-logout.js` | POST | `POST /api/v1/auth/logout` |
+
+Tất cả function: đọc `HELPID_BACKEND_URL` từ `process.env.*`. **Không** để `HELPID_BACKEND_URL` vào Vite bundle hoặc biến `VITE_*`.
+
+### 7.4 File TypeScript / component cần tạo
+
+| File | Vai trò |
+|---|---|
+| `helper-id/lib/adminAuth.ts` | `login()`, `logout()`, `getAdminToken()`, `isAdminLoggedIn()`, `getAdminUserId()` |
+| `helper-id/lib/adminApi.ts` | `getStats()`, `getUsers()`, `assignRole()`, `revokeRole()` — attach Authorization header từ sessionStorage |
+| `helper-id/components/admin/AdminLoginPage.tsx` | Form đăng nhập — loading state, error text, redirect sau login |
+| `helper-id/components/admin/AdminRoute.tsx` | Protected route wrapper — redirect `/admin/login` nếu không có session |
+| `helper-id/components/admin/AdminLayout.tsx` | Header "HelpID Admin" + nút Logout |
+| `helper-id/components/admin/AdminDashboardPage.tsx` | 4 stat card, loading skeleton, error state + Retry |
+| `helper-id/components/admin/AdminUsersPage.tsx` | Bảng user, Next/Prev, Grant/Revoke per-row với loading state |
+
+### 7.5 sessionStorage keys
+
+| Key | Giá trị |
+|---|---|
+| `helpid_admin_access_token` | access token JWT |
+| `helpid_admin_refresh_token` | refresh token |
+| `helpid_admin_expires_at` | ISO timestamp `accessTokenExpiresAtUtc` |
+| `helpid_admin_user_id` | userId (`sub` claim) — dùng để disable nút Revoke cho account đang đăng nhập |
+
+### 7.6 Security constraints
+
+| Constraint | Chi tiết |
+|---|---|
+| No backend URL in bundle | `HELPID_BACKEND_URL` chỉ trong `process.env.*` của serverless function |
+| sessionStorage only | Token không lưu vào `localStorage`, không embed vào URL |
+| No token logging | Token không được log ra `console.*` ở bất kỳ đâu |
+| noindex | `vercel.json` thêm `X-Robots-Tag: noindex, nofollow, noarchive` cho source `/admin/(.*)` và `/api/admin(.*)`. Component login và layout có `<meta name="robots" content="noindex">` |
+| 401/403 handling | `adminApi.ts` nhận 401/403 từ proxy → clear `sessionStorage` → redirect về `/admin/login` |
+| Logout revoke | `logout()` gọi `POST /api/admin-logout` (forward token lên backend `/api/v1/auth/logout`) **trước** khi clear `sessionStorage` |
+| Self-revoke protection | Nút Revoke bị disable cho row có `userId == getAdminUserId()` |
+| Input validation | `admin-role.js`: validate `roleId` ∈ `["role_user","role_admin"]`, `userId` tối đa 64 ký tự |
+| Timeout | Tất cả serverless function dùng `AbortSignal.timeout(10_000)` |
+| No health data | Proxy không log và không trả `allergies`, `medicalNotes`, `emergencyContacts` |

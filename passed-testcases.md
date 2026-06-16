@@ -1,3 +1,49 @@
+16/06/2026 23:55:00
+- Mục đích/nội dung testcase: PROMPT 47 — unit test `adminAuth.ts` + `adminApi.ts` (Vitest), build + tsc, checklist test thủ công 12 TC web admin panel.
+- Cách test: Cài `vitest@4.1.9` + `jsdom@29.1.1`, tạo `vitest.config.ts` (environment jsdom), thêm script `"test": "vitest run"` vào `package.json`, viết 2 file test `lib/__tests__/adminAuth.test.ts` (13 test) + `lib/__tests__/adminApi.test.ts` (14 test), chạy `npm test`. Build: `npm run build`. Typecheck: `npx tsc --noEmit`. Manual tests: curl trực tiếp backend `localhost:5080` (backend đang chạy) + code inspection.
+- Expected result: 27 unit test PASS, build PASS, tsc PASS, 12 manual TC xác nhận đúng hành vi.
+- Actual result:
+  - Unit tests: 27/27 PASS (2 files, 776ms). adminAuth.ts: `login()` lưu 4 key đúng + throw INVALID_CREDENTIALS on 401/403 + throw SERVER_ERROR on 500; `getAdminToken()` trả null khi empty/no-expiry/expired + clear session khi expired + trả token khi valid; `isAdminLoggedIn()` false khi chưa login / true khi valid session; `logout()` clear tất cả 4 key ngay lập tức kể cả khi chưa login; `getAdminUserId()` trả null khi empty / trả userId đúng. adminApi.ts: `getStats()` parse 4 field đúng + throw AdminAuthError khi no-token/401/403 + throw FETCH_ERROR on 500; `getUsers()` parse users/page/totalCount + throw AdminAuthError on 401; `assignRole()` resolve on 204 + throw AdminAuthError on 403 + throw USER_NOT_FOUND on 404; `revokeRole()` resolve on 204 + throw USER_NOT_FOUND on 404; network error propagate as TypeError (not AdminAuthError). PASS.
+  - Build: 1734 modules transformed, 2.01s. PASS.
+  - tsc: zero errors. PASS.
+  - TC-01 (Login admin → /admin stats đúng): curl `POST /api/v1/auth/login` email testadmin_manual (có role Admin) → 200 + accessToken. `GET /api/v1/admin/stats` với Bearer → `{"totalUsers":5,"totalProfiles":5,"totalPublicLinks":2,"auditEventsLast7Days":2}`. PASS.
+  - TC-02 (Login non-admin → 403): `POST /api/v1/auth/login` email thường → 200; `GET /api/v1/admin/stats` với token đó → 403. Backend API-level PASS. Proxy `admin-login.js` forward 401/403 → client nhận `INVALID_CREDENTIALS` — verified by code inspection. PASS.
+  - TC-03 (Unauthenticated → redirect /admin/login): Code inspection `AdminRoute.tsx`: `if (!isAdminLoggedIn()) return <Navigate to="/admin/login" replace />` — không có sessionStorage → `getAdminToken()` trả null → redirect đúng. PASS.
+  - TC-04 (Dashboard stats match curl): `GET /api/v1/admin/stats` với admin token → `totalUsers:5, totalProfiles:5, totalPublicLinks:2, auditEventsLast7Days:2` — cùng data mà `getStats()` sẽ hiển thị. PASS.
+  - TC-05 (Users tab + pagination): `GET /api/v1/admin/users?page=1&size=5` → 5 user, `page=2&size=3` → đúng offset. `totalCount=5`, `totalPages=ceil(5/20)=1` với PAGE_SIZE=20. PASS.
+  - TC-06 (Grant Admin → reload → user có role Admin): `POST /api/v1/admin/users/bd6edab.../roles/role_admin` → 204. Verify: user có `"roles":["Admin","User"]`. PASS.
+  - TC-07 (Revoke Admin → reload → role bị xóa): `DELETE /api/v1/admin/users/bd6edab.../roles/role_admin` → 204. Verify: user có `"roles":["User"]`. PASS.
+  - TC-08 (Revoke button disabled for self ở API + UI): API: `DELETE /api/v1/admin/users/{selfId}/roles/role_admin` → 403 `"You cannot revoke your own admin role."`. UI: code inspection `AdminUsersPage.tsx` `disabled={busy || isSelf}` where `isSelf = user.userId === currentUserId` (getAdminUserId()). PASS.
+  - TC-09 (Logout → sessionStorage clear → /admin → redirect login): Backend: `POST /api/v1/auth/logout` với `{refreshToken}` body → 204. `adminAuth.ts logout()`: fire-and-forget revoke, gọi `clearSession()` ngay lập tức xóa 4 key. `AdminLayout` `handleLogout`: `logout()` + `navigate('/admin/login', { replace: true })`. PASS.
+  - TC-10 (Close tab + reopen → redirect login): `sessionStorage` không persist qua tab close (browser spec). `adminAuth.ts` chỉ dùng `sessionStorage.*` — không có `localStorage`. Code inspection PASS.
+  - TC-11 (Backend off → error shown + Retry): Code inspection `AdminDashboardPage.tsx`: catch block `setError('Failed to load stats. Please try again.')` + Retry button gọi `load()`. `AdminUsersPage.tsx` tương tự. `authedFetch` network errors bubble up as TypeError. PASS.
+  - TC-12 (X-Robots-Tag: noindex): `vercel.json` có `"source": "/admin/(.*)"` → header `X-Robots-Tag: noindex, nofollow, noarchive`. Tất cả 5 file `api/admin-*.js` có `setSecurityHeaders()` đặt `X-Robots-Tag: noindex, nofollow, noarchive`. `AdminLoginPage.tsx` + `AdminLayout.tsx` gọi `setNoIndexMeta()` imperative DOM. PASS.
+  - BUG FOUND + FIXED: `api/admin-logout.js` không gửi body → backend trả 500 (body binding fail). Fix: proxy đọc `req.body.refreshToken` và forward với `Content-Type: application/json`. `adminAuth.ts logout()` gửi refresh token trong body. Verify sau fix: `POST /api/v1/auth/logout` với body `{refreshToken}` → 204. Unit tests vẫn 27/27 PASS. Build + tsc vẫn PASS.
+
+16/06/2026 23:34:11
+- Mục đích/nội dung testcase: PROMPT 46 — rà soát security hardening web admin + build + type check sau khi tạo `api/admin-logout.js`.
+- Cách test: code review toàn bộ 5 file proxy + 2 lib + vercel.json theo 7 checklist; `npm run build` + `npx tsc --noEmit`.
+- Expected result: không có token/secret trong bundle, 401/403 xử lý đúng, logout proxy tồn tại, noindex đúng chỗ, timeout có mặt, build PASS, tsc PASS.
+- Actual result: ✓ 6/7 checklist pass sẵn; item 4 (admin-logout.js thiếu) được tạo mới. Build PASS (1734 modules, 2.03s). tsc PASS (zero errors). PASS.
+
+16/06/2026 23:30:37
+- Mục đích/nội dung testcase: PROMPT 45 — build + type check `helper-id` sau khi thêm `lib/adminApi.ts`, `components/admin/AdminLayout.tsx`, `components/admin/AdminDashboardPage.tsx`, `components/admin/AdminUsersPage.tsx` và cập nhật `App.tsx` nested routes.
+- Cách test: `npm run build` (Vite production build) + `npx tsc --noEmit` (TypeScript strict type check).
+- Expected result: build PASS, tsc PASS (zero errors).
+- Actual result: ✓ build PASS — 1734 modules transformed, 2.09s. ✓ tsc PASS — no output (zero errors). PASS.
+
+16/06/2026 23:27:16
+- Mục đích/nội dung testcase: PROMPT 44 — build + type check `helper-id` sau khi thêm `lib/adminAuth.ts`, `components/admin/AdminLoginPage.tsx`, `components/admin/AdminRoute.tsx` và cập nhật `App.tsx`.
+- Cách test: `npm run build` (Vite production build) + `npx tsc --noEmit` (TypeScript strict type check).
+- Expected result: build thành công không có lỗi, tsc không có type error.
+- Actual result: ✓ build PASS — 1730 modules transformed, 2.01s. ✓ tsc PASS — no output (zero errors). PASS.
+
+16/06/2026 23:23:20
+- Mục đích/nội dung testcase: PROMPT 43 — build `helper-id` sau khi thêm 4 Vercel serverless function admin và cập nhật `vercel.json`.
+- Cách test: `cd helper-id && npm run build` — Vite build production, kiểm tra không có lỗi compile/transform.
+- Expected result: build thành công, không có warning/error Vite.
+- Actual result: ✓ 1727 modules transformed, `dist/index.html` + CSS + JS bundle tạo thành công trong 1.99s. PASS.
+
 16/06/2026 20:35:00
 - Mục đích/nội dung testcase: PROMPT 41 — checklist test thủ công 12 trường hợp cho trang Admin (Android emulator `emulator-5554`, backend ASP.NET Core `localhost:5080`, APK debug đã cài).
 - Cách test: thao tác thủ công qua `adb shell input tap/text/keyevent`, chụp màn hình, kiểm tra `uiautomator dump`, gọi API trực tiếp qua `curl` để cross-check. Không ghi email thật, token, dữ liệu y tế trong kết quả.
