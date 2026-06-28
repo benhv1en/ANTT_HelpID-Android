@@ -1,17 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!--
-        Allow HTTP cleartext to the Android emulator's host loopback (10.0.2.2)
-        so the debug build can reach a local backend at http://10.0.2.2:5080.
-        All other traffic is HTTPS-only via the base config.
+        base-config: áp dụng cho mọi domain không có domain-config riêng.
+        cleartextTrafficPermitted="false" chặn toàn bộ HTTP plaintext (kể cả release build).
     -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">10.0.2.2</domain>
-    </domain-config>
-
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
     </base-config>
+
+    <!--
+        domain-config cho backend dev (127.0.0.1 qua adb reverse tcp:7080 tcp:7080).
+        pin-set enforce SPKI SHA-256 của dotnet dev-certs cert — chặn MITM proxy.
+        Expiration 2028-01-01: nếu quá hạn mà chưa cập nhật, Android cảnh báo nhưng
+        vẫn kết nối (behavior mặc định khi expiration passed).
+    -->
+    <domain-config>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <pin-set expiration="2028-01-01">
+            <!-- Primary: SPKI SHA-256 của dotnet dev-certs cert hiện tại -->
+            <pin digest="SHA-256">Hp88H3igedctKspnX1r9lMTuRy8jT0maAtc9qAMQPyI=</pin>
+            <!-- Backup: placeholder key — phải thay bằng cert rotation key trước production -->
+            <pin digest="SHA-256">I73HBnEVq8rxWRTENWE2CbiRa3+l000YYQJIdbnJaCQ=</pin>
+        </pin-set>
+        <!--
+            debug-overrides: chỉ áp dụng trong debug build.
+            Trust "user" CA để Android emulator chấp nhận dotnet dev cert tự ký.
+            Không áp dụng trong release build — production chỉ trust system CA.
+            LƯU Ý: debug-overrides vô hiệu hóa pin-checking trong debug build (Android default).
+            Pin enforcement chỉ active trong release build hoặc khi debug-overrides bị xóa.
+        -->
+        <debug-overrides>
+            <trust-anchors>
+                <certificates src="user"/>
+                <certificates src="system"/>
+            </trust-anchors>
+        </debug-overrides>
+    </domain-config>
 </network-security-config>

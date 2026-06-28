@@ -46,6 +46,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.helpid.app.R
 import com.helpid.app.ui.components.GhostButton
 import com.helpid.app.ui.components.ScreenHeader
+import com.helpid.app.ui.components.SecureScreenWrapper
 import com.helpid.app.ui.components.ShimmerPlaceholder
 import com.helpid.app.ui.theme.HelpIDTheme
 import kotlinx.coroutines.Dispatchers
@@ -139,6 +140,7 @@ fun QRScreen(
         mintAndUpdate()
     }
 
+    SecureScreenWrapper {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -300,6 +302,7 @@ fun QRScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
     }
+}
 }
 
 @Preview(showBackground = true)

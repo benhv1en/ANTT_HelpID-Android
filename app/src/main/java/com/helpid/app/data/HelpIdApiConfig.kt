@@ -20,7 +20,8 @@ object HelpIdApiConfig {
     internal const val PREF_NAME = "helpid_api_config"
     internal const val KEY_BASE_URL = "base_url"
 
-    private const val DEFAULT_DEBUG_URL = "http://10.0.2.2:5080"
+    // HTTPS qua adb reverse tcp:7080 tcp:7080 (emulator) hoặc USB adb reverse (device)
+    const val BASE_URL_HTTPS = "https://127.0.0.1:7080"
 
     fun getBaseUrl(context: Context): String {
         val stored = context
@@ -29,7 +30,7 @@ object HelpIdApiConfig {
             ?.trim()
             ?.trimEnd('/')
         if (!stored.isNullOrBlank()) return stored
-        return if (BuildConfig.DEBUG) DEFAULT_DEBUG_URL else ""
+        return if (BuildConfig.DEBUG) BASE_URL_HTTPS else ""
     }
 
     fun setBaseUrl(context: Context, url: String) {

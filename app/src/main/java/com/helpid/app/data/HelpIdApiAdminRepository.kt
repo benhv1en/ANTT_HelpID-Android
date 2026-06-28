@@ -3,9 +3,11 @@ package com.helpid.app.data
 import android.content.Context
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
+import com.helpid.app.network.HelpIdHttpClient
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import javax.net.ssl.SSLHandshakeException
 
 // ── Data classes ──────────────────────────────────────────────────────────────
 
@@ -78,7 +80,7 @@ class HelpIdApiAdminRepository internal constructor(
     constructor(context: Context) : this(
         tokenSource = AdminTokenStoreAdapter(AuthTokenStore(context)),
         authRepo = HelpIdApiAuthRepository(context),
-        http = DefaultAdminHttpClient(TIMEOUT_MS),
+        http = DefaultAdminHttpClient(),
         getBaseUrl = { HelpIdApiConfig.getBaseUrl(context) }
     )
 
@@ -100,7 +102,8 @@ class HelpIdApiAdminRepository internal constructor(
                 response.first == 403 -> AdminApiResult.Forbidden
                 else -> AdminApiResult.Failed
             }
-        } catch (_: IOException) { AdminApiResult.Offline }
+        } catch (e: SSLHandshakeException) { HelpIdHttpClient.logPinFailure(); AdminApiResult.Offline }
+        catch (_: IOException) { AdminApiResult.Offline }
         catch (_: Exception) { AdminApiResult.Failed }
     }
 
@@ -122,7 +125,8 @@ class HelpIdApiAdminRepository internal constructor(
                 response.first == 403 -> AdminApiResult.Forbidden
                 else -> AdminApiResult.Failed
             }
-        } catch (_: IOException) { AdminApiResult.Offline }
+        } catch (e: SSLHandshakeException) { HelpIdHttpClient.logPinFailure(); AdminApiResult.Offline }
+        catch (_: IOException) { AdminApiResult.Offline }
         catch (_: Exception) { AdminApiResult.Failed }
     }
 
@@ -146,7 +150,8 @@ class HelpIdApiAdminRepository internal constructor(
                 response.first == 403 -> AdminApiResult.Forbidden
                 else -> AdminApiResult.Failed
             }
-        } catch (_: IOException) { AdminApiResult.Offline }
+        } catch (e: SSLHandshakeException) { HelpIdHttpClient.logPinFailure(); AdminApiResult.Offline }
+        catch (_: IOException) { AdminApiResult.Offline }
         catch (_: Exception) { AdminApiResult.Failed }
     }
 
@@ -171,7 +176,8 @@ class HelpIdApiAdminRepository internal constructor(
                 response.first == 403 -> AdminApiResult.Forbidden
                 else -> AdminApiResult.Failed
             }
-        } catch (_: IOException) { AdminApiResult.Offline }
+        } catch (e: SSLHandshakeException) { HelpIdHttpClient.logPinFailure(); AdminApiResult.Offline }
+        catch (_: IOException) { AdminApiResult.Offline }
         catch (_: Exception) { AdminApiResult.Failed }
     }
 
@@ -261,16 +267,13 @@ private class AdminTokenStoreAdapter(private val s: AuthTokenStore) : ProfileTok
     )
 }
 
-private class DefaultAdminHttpClient(private val timeoutMs: Int) : AdminHttpClient {
+private class DefaultAdminHttpClient : AdminHttpClient {
     override fun get(url: String, token: String) = execute(url, "GET", token)
     override fun post(url: String, token: String) = execute(url, "POST", token)
     override fun delete(url: String, token: String) = execute(url, "DELETE", token)
 
     private fun execute(url: String, method: String, token: String): Pair<Int, String> {
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = timeoutMs
-            readTimeout = timeoutMs
+        val conn = HelpIdHttpClient.openConnection(URL(url), method).apply {
             setRequestProperty("Accept", "application/json")
             setRequestProperty("Authorization", "Bearer $token")
         }

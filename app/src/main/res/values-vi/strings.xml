@@ -44,6 +44,7 @@
     <string name="init_error_timeout">Khởi tạo quá thời gian chờ</string>
     <string name="init_error_unknown">Lỗi không xác định</string>
     <string name="error_loading_profile_demo">Không tải được hồ sơ. Đang dùng dữ liệu mẫu.</string>
+    <string name="error_mitm_detected">Không thể kết nối an toàn với máy chủ. Vui lòng kiểm tra mạng.</string>
     <string name="sos_countdown">SOS sẽ gửi sau %1$d giây</string>
     <string name="cancel_sos">Hủy SOS</string>
     <string name="auto_call_countdown">Tự động gọi %1$s sau %2$d giây</string>

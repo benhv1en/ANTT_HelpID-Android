@@ -42,7 +42,7 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
 fi
 
 # Kill any process that is LISTENING on port 5080 (not mere clients/tunnels connected to it)
-LISTENER_PID=$(ss -Htlnp 'sport = :5080' | grep -oP 'pid=\K[0-9]+' | head -1)
+LISTENER_PID=$(ss -Htlnp 'sport = :5080' | grep -oP 'pid=\K[0-9]+' | head -1 || true)
 if [[ -n "$LISTENER_PID" ]]; then
     echo "[run-backend] Killing existing listener on port 5080 (pid $LISTENER_PID)..."
     kill -9 "$LISTENER_PID" 2>/dev/null || true
@@ -61,5 +61,5 @@ dotnet ef database update \
 
 # Start the backend
 echo "[run-backend] Starting backend..."
-echo "[run-backend] Health check: curl https://evil-paws-try.loca.lt/health"
+echo "[run-backend] Health check: curl http://localhost:5080/health"
 dotnet run --project "$PROJECT" --urls "http://0.0.0.0:5080"

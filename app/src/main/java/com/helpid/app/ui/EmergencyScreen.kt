@@ -95,8 +95,11 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.helpid.app.network.HelpIdHttpClient
+import com.helpid.app.ui.components.SecureScreenWrapper
 import com.helpid.app.ui.components.ShimmerPlaceholder
 import com.helpid.app.ui.components.SkeletonSpacer
+import javax.net.ssl.SSLHandshakeException
 import com.helpid.app.ui.components.SkeletonTextLine
 import androidx.core.content.ContextCompat
 import androidx.work.ExistingWorkPolicy
@@ -131,6 +134,7 @@ fun EmergencyScreen(
 
     val userProfile = remember { mutableStateOf(UserProfile.default(userId, selectedLanguageCode)) }
     val isLoading = remember { mutableStateOf(true) }
+    val mitmError = remember { mutableStateOf(false) }
     val isSendingSos = remember { mutableStateOf(false) }
     val sosCountdown = remember { mutableStateOf(0) }
     val sosCountdownJob = remember { mutableStateOf<Job?>(null) }
@@ -572,6 +576,10 @@ fun EmergencyScreen(
                 userProfile.value = UserProfile.default("", selectedLanguageCode)
             }
         } catch (e: Exception) {
+            if (e is SSLHandshakeException || e.cause is SSLHandshakeException) {
+                HelpIdHttpClient.logPinFailure()
+                mitmError.value = true
+            }
             android.util.Log.e("EmergencyScreen", "Profile load effect failed")
         } finally {
             if (!hasCached) {
@@ -612,7 +620,7 @@ fun EmergencyScreen(
     android.util.Log.d("EmergencyScreen", "About to render: isLoading=${isLoading.value}")
     
     if (isLoading.value) {
-        EmergencySkeleton()
+        SecureScreenWrapper { EmergencySkeleton() }
         return
     }
 
@@ -620,14 +628,20 @@ fun EmergencyScreen(
     
     // Fallback to demo profile if loading failed (profile should always be set now)
     if (profile.userId.isEmpty()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFFAFAFA)),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(stringResource(R.string.error_loading_profile_demo), fontSize = 14.sp, color = Color(0xFFD32F2F))
+        SecureScreenWrapper {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFFAFAFA)),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val errorMsg = if (mitmError.value)
+                    stringResource(R.string.error_mitm_detected)
+                else
+                    stringResource(R.string.error_loading_profile_demo)
+                Text(errorMsg, fontSize = 14.sp, color = Color(0xFFD32F2F))
+            }
         }
         return
     }
@@ -645,6 +659,7 @@ fun EmergencyScreen(
         context.getString(R.string.updated, sdf.format(date))
     }
 
+    SecureScreenWrapper {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1208,6 +1223,7 @@ fun EmergencyScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
     }
+}
 }
 
 @Preview(showBackground = true)

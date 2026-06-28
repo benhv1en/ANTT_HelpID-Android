@@ -8,11 +8,13 @@ import com.helpid.app.data.local.AppDatabase
 import com.helpid.app.data.local.LocalEmergencyContact
 import com.helpid.app.data.local.LocalUserProfile
 import com.helpid.app.data.local.UserProfileDao
+import com.helpid.app.network.HelpIdHttpClient
 import com.helpid.app.utils.SecurePrefs
 import java.io.IOException
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import javax.net.ssl.SSLHandshakeException
 
 /** Abstracts token read/write so tests can inject a fake without Android Keystore. */
 internal interface ProfileTokenSource {
@@ -57,7 +59,7 @@ class HelpIdApiProfileRepository internal constructor(
         authRepo = HelpIdApiAuthRepository(context),
         profileDao = AppDatabase.getDatabase(context).userProfileDao(),
         syncPrefs = SecurePrefs.create(context, "helpid_api_profile_sync"),
-        http = DefaultHttpClient(TIMEOUT_MS),
+        http = DefaultHttpClient(),
         getBaseUrl = { HelpIdApiConfig.getBaseUrl(context) }
     )
 
@@ -88,6 +90,9 @@ class HelpIdApiProfileRepository internal constructor(
                 }
                 else -> roomOrDefault(userId)
             }
+        } catch (e: SSLHandshakeException) {
+            HelpIdHttpClient.logPinFailure()
+            throw e
         } catch (_: IOException) {
             roomOrDefault(userId)
         } catch (_: Exception) {
@@ -141,6 +146,9 @@ class HelpIdApiProfileRepository internal constructor(
                 }
                 else -> setPendingSync(true)
             }
+        } catch (e: SSLHandshakeException) {
+            HelpIdHttpClient.logPinFailure()
+            setPendingSync(true)
         } catch (_: IOException) {
             setPendingSync(true)
         } catch (_: Exception) {
@@ -292,7 +300,7 @@ private class AuthTokenStoreAdapter(private val s: AuthTokenStore) : ProfileToke
     )
 }
 
-private class DefaultHttpClient(private val timeoutMs: Int) : ProfileHttpClient {
+private class DefaultHttpClient : ProfileHttpClient {
     override fun get(url: String, token: String): Pair<Int, String> {
         val conn = open(URL(url), "GET", null, token)
         val code = conn.responseCode
@@ -310,10 +318,7 @@ private class DefaultHttpClient(private val timeoutMs: Int) : ProfileHttpClient 
     }
 
     private fun open(url: URL, method: String, body: String?, token: String): HttpURLConnection =
-        (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = timeoutMs
-            readTimeout = timeoutMs
+        HelpIdHttpClient.openConnection(url, method).apply {
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
             setRequestProperty("Authorization", "Bearer $token")

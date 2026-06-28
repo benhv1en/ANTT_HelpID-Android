@@ -1,0 +1,89 @@
+Tài liệu này là bao gồm tất cả các yêu câu về  viết báo cáo cho toàn bộ những thứ mà bọn tao đã đóng góp vào project này, phục vụ cho môn học "An ninh thông tin".
+
+A. Yêu cầu về nội dung trình bày
+Nội dung được trình bày theo hierarchy như sau:
+
+Trang bìa
+Trang phụ bìa
+Mục lục
+	Danh mục ký hiệu và viết tắt
+	Danh mục hình vẽ
+	Danh mục bảng
+	Lời cảm ơn
+	Lời nói đầu
+	Chương 1: Cơ sở lý thuyết về bảo mật cho phần mềm quản lý chi tiết cá nhân trên điện thoại
+		1.1.
+		1.2.
+		1.3.
+		...
+		(tao phải để trống phần này tại vì tao đéo biết viết gì)
+		...
+	Chương 2: Xây dựng các tính năng bảo mật cho phần mềm quản lý thông tin y tế khẩn cấp trên điện thoại android
+		2.1. Tính năng đăng nhập vân tay (kiểu kiểu thế)
+			2.1.1. Để làm gì (hoặc là mục đích của tính năng bla bla bla kiểu kiểu thế)
+			2.1.2. làm nó như thế nào (hoặc là quy trinh, quá trình,... kiểu kiểu thế):
+				2.1.2.1.
+				2.1.2.2.
+				...
+				(tao phải để trống phần này tại vì tao đéo biết viết gì)
+				...
+		2.2. Tính năng chống chụp màn hình (kiểu kiểu thế)
+			2.2.1. Để làm gì (hoặc là mục đích của tính năng bla bla bla kiểu kiểu thế)
+			2.2.2. làm nó như thế nào (hoặc là quy trinh, quá trình,... kiểu kiểu thế)
+				2.2.2.1.
+				2.2.2.2.
+				...
+				(tao phải để trống phần này tại vì tao đéo biết viết gì)
+				...
+		2.3. Tính năng certificate pinning (kiểu kiểu thế)
+			2.3.1. Để làm gì (hoặc là mục đích của tính năng bla bla bla kiểu kiểu thế)
+			2.3.2. làm nó như thế nào (hoặc là quy trinh, quá trình,... kiểu kiểu thế)
+				2.3.2.1.
+				2.3.2.2.
+				...
+				(tao phải để trống phần này tại vì tao đéo biết viết gì)
+				...
+	Chương 3: Kiểm thử và đánh giá
+		3.1. kiểm thử tính năng đăng nhập vân tay(kiểu kiểu thế)
+			Một vài kịch bản kiểm thử tiêu biểu nhất thôi, nhưng mỗi kịch bản phải nêu rõ: 
+				1. Mục đích kiểm thử
+				2. Expected result (đéo biết dịch sang tiếng Việt là gì?)
+				3. Quá trình (cách làm) kiểm thử
+				4. Kết quả kiểm thử
+		3.2. kiểm thử tính năng chống chụp màn hình (kiểu kiểu thế)
+			Một vài kịch bản kiểm thử tiêu biểu nhất thôi, nhưng mỗi kịch bản phải nêu rõ: 
+				1. Mục đích kiểm thử
+				2. Expected result (đéo biết dịch sang tiếng Việt là gì?)
+				3. Quá trình (cách làm) kiểm thử
+				4. Kết quả kiểm thử
+		3.3. kiểm thử tính năng certificate pinning (kiểu kiểu thế)
+			Một vài kịch bản kiểm thử tiêu biểu nhất thôi, nhưng mỗi kịch bản phải nêu rõ: 
+				1. Mục đích kiểm thử
+				2. Expected result (đéo biết dịch sang tiếng Việt là gì?)
+				3. Quá trình (cách làm) kiểm thử
+				4. Kết quả kiểm thử
+	Kết luận
+	Tài liệu tham khảo
+
+B: Yêu cầu về hình thức trình bày
+- số lượng trang: khoảng 50 đến 70 trang (tính cả tài liệu tham khảo + phụ lục)
+- font chữ: Times New Roman, cỡ 14 đối với title, heading,...; cỡ 13 đối với đoạn văn; mãu chữ là màu đen
+- độ giãn dòng: 1.5 lines
+- khoảng cách lề: lề trên 2.5cm, lề dưới 3cm, lề trái 3.5cm, lề phải 2cm
+- khoảng cách dòng: 6pt. Dòng đầu tiên của mỗi đoạn văn lùi vào 1.27cm
+- Đánh số trang: đánh số ở giữa, phía dưới của mỗi trang. Đánh liên tục bắt đầu từ phần "Mở đầu" đến hết phần "Kết luận"
+- Bảng biểu: Đánh số thứ tự liên tục; chú giải về bảng biểu được ghi ở PHÍA TRÊN của bảng, và phải có reference trong phần "Danh mục bảng"
+- Các đồ thị, hình vẽ, ảnh (gọi chung là hình): đánh số thứ tự liên tục từ đầu đến cuối. chú giải về hình được ghi ở PHÍA DƯỚI của hình.
+- Tài liệu tham khảo: đánh citation liên tục trong bài, ghi nguồn ở phần "tài liệu tham khảo", trích dẫn theo đúng format của IEEE. không đánh .footnote
+
+C: Yêu cầu về trang bìa và trang phụ bìa
+- bắt buộc phải theo format như trang_bia.png và trang_phu_bia.png, ngoại trừ:
+	- phần "KHOA..." điền "KHOA CÔNG NGHỆ VÀ KỸ THUẬT TIÊN TIẾN"
+	- phần "Họ và tên sinh viên" thay thế bằng "Nguyễn Phương Nhung 23110208\nNguyễn Minh Đức - 22110117\nĐào Phương Linh - 23110186" (\n là ký tự xuống dòng, mày xuống dòng sao cho nó thẳng hàng nhau và đẹp mắt là được)
+	- phần "TÊN ĐỀ TÀI KHÓA LUẬN/ĐỒ ÁN" thay thế bằng "XÂY DỰNG CÁC TÍNH NĂNG BẢO MẬT CHO PHẦN MỀM QUẢN LÝ THÔNG TIN Y TẾ KHẨN CẤP TRÊN ĐIỆN THOẠI ANDROID"
+	- phần "khóa luận/đồ án tốt nghiệp đại học hệ chính quy" thay bằng "Đồ án cuối kỳ môn An ninh thông tin"
+	- phần "ngành ..." điền "Ngành Khoa học và Kỹ thuật máy tính"
+	- phần "Hà Nội - 202..." thì điền "Hà Nội - 2026"
+	- phần "Cán bộ hướng dẫn" ở "trang phụ bìa" ghi là "Nguyễn Mạnh Thắng, Mai Đức Thọ"
+	
+D: yêu cầu về định dạng file: cả .docx và .odt

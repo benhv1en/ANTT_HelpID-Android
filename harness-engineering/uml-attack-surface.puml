@@ -1,0 +1,68 @@
+@startuml
+title Sơ đồ Attack Surface - HelpID (3 vùng tấn công)
+
+skinparam defaultFontName "DejaVu Sans"
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam rectangle {
+  BorderColor #334155
+  FontSize 13
+}
+skinparam actor {
+  BackgroundColor #FFCDD2
+  BorderColor #B71C1C
+}
+skinparam arrowColor #B71C1C
+skinparam arrowFontColor #7F0000
+skinparam arrowFontSize 12
+
+package "VÙNG 1: THIẾT BỊ\n(Android, ngữ cảnh máy bị mất/mượn/cài app độc hại)" as Device #E3F2FD {
+  actor "Kẻ tấn công\ncó quyền truy cập\nvật lý / local app" as AttackerDevice
+  rectangle "FLAG_SECURE\n(MainActivity.onCreate)\nchặn screencap & screenrecord\ntoàn bộ window" as DefFlagSecure #FFFFFF
+  rectangle "SecureScreenWrapper\n(overlay che nội dung\nkhi onPause -> Recents thumbnail)" as DefWrapper #FFFFFF
+  rectangle "BiometricPrompt bắt buộc\n(BiometricLockScreen)\ntrước khi vào Emergency screen" as DefBiometric #FFFFFF
+  rectangle "AES-256-GCM field encryption\n(SensitiveDataCipher, alias\nhelpid_sensitive_aes/AndroidKeyStore)\n+ EncryptedSharedPreferences\n(AuthTokenStore)" as DefEncryption #FFFFFF
+
+  AttackerDevice --> DefFlagSecure : chụp/quay màn hình\nlúc xem hồ sơ y tế
+  AttackerDevice --> DefWrapper : xem thumbnail Recent Apps\nlộ dữ liệu nhạy cảm
+  AttackerDevice --> DefBiometric : cầm máy đã mở khóa\nmàn hình, mở app HelpID
+  AttackerDevice --> DefEncryption : root máy / đọc trực tiếp\nfile Room DB, SharedPreferences
+}
+
+package "VÙNG 2: MẠNG\n(MITM cùng Wi-Fi / proxy giả mạo)" as Network #FFF3E0 {
+  actor "Kẻ tấn công\nMITM trên cùng mạng" as AttackerNetwork
+  rectangle "Certificate Pinning (SPKI)\nnetwork_security_config.xml\n-> SSLHandshakeException\nkhi cert không khớp" as DefPinning #FFFFFF
+  rectangle "cleartextTrafficPermitted=false\n(chỉ cho phép HTTPS)" as DefHttpsOnly #FFFFFF
+  rectangle "Access token TTL 15 phút\n+ Refresh token rotation\n& reuse detection (revoke\ncả token family)" as DefTokenRotation #FFFFFF
+
+  AttackerNetwork --> DefPinning : cài CA giả + proxy\n(Burp/Charles) đọc traffic HTTPS
+  AttackerNetwork --> DefHttpsOnly : sniff traffic\ndạng plaintext HTTP
+  AttackerNetwork --> DefTokenRotation : đánh cắp access/refresh\ntoken rồi replay lại
+}
+
+package "VÙNG 3: BACKEND\n(request trực tiếp tới API)" as Backend #E8F5E9 {
+  actor "Kẻ tấn công\ngửi request trực tiếp\ntới API" as AttackerBackend
+  rectangle "EF Core LINQ\n(parameterized query,\nkhông FromSqlRaw/ExecuteSqlRaw)" as DefSqlInjection #FFFFFF
+  rectangle "Account lockout\n(FailedLoginCount,\nLockoutUntilUtc)" as DefLockout #FFFFFF
+  rectangle "userId luôn lấy từ JWT\nclaim 'sub' + policy\nProfileReadSelf/WriteSelf" as DefOwnership #FFFFFF
+  rectangle "RBAC + policy\n'AdminMetadata'\n(RequireAuthorization)" as DefRbac #FFFFFF
+  rectangle "PublicProfileLinks kiểm tra\nRevokedAtUtc + chỉ trả\nwhitelist field" as DefPublicLink #FFFFFF
+
+  AttackerBackend --> DefSqlInjection : SQL injection qua input\n(email, hồ sơ...)
+  AttackerBackend --> DefLockout : brute-force\nmật khẩu đăng nhập
+  AttackerBackend --> DefOwnership : đoán/sửa userId để đọc\nhồ sơ người khác (IDOR)
+  AttackerBackend --> DefRbac : gọi endpoint /admin/*\nkhi không phải admin
+  AttackerBackend --> DefPublicLink : dò public emergency link\nđã bị thu hồi
+}
+
+Device -[hidden]-> Network
+Network -[hidden]-> Backend
+
+note bottom of DefTokenRotation
+  Token bị đánh cắp dùng lại sau khi
+  client thật đã refresh -> toàn bộ
+  "token family" bị revoke (chặn cả
+  kẻ tấn công và buộc đăng nhập lại).
+end note
+
+@enduml

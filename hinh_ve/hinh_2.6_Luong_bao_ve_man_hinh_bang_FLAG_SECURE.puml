@@ -1,0 +1,24 @@
+@startuml
+title Hình 2.6. Luồng bảo vệ màn hình bằng FLAG_SECURE
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+  DiamondBackgroundColor White
+  DiamondBorderColor Black
+}
+
+start
+:Composable màn hình nhạy cảm được mount;
+:SecureScreenWrapper lấy Activity Window hiện tại;
+:Thêm FLAG_SECURE vào Window;
+:Người dùng xem nội dung nhạy cảm;
+if (Người dùng chụp/quay màn hình?) then (Có)
+  :Hệ điều hành chặn hoặc làm trống nội dung;
+else (Không)
+endif
+:Composable rời khỏi composition;
+:SecureScreenWrapper gỡ FLAG_SECURE theo phạm vi;
+stop
+@enduml

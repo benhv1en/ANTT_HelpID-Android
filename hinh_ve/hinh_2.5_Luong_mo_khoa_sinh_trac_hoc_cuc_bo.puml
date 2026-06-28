@@ -1,0 +1,26 @@
+@startuml
+title Hình 2.5. Luồng mở khóa sinh trắc học cục bộ
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+  DiamondBackgroundColor White
+  DiamondBorderColor Black
+}
+
+start
+:Người dùng mở ứng dụng hoặc màn hình nhạy cảm;
+:Ứng dụng kiểm tra trạng thái yêu cầu khóa sinh trắc học;
+if (Thiết bị có hỗ trợ và đã enroll sinh trắc học?) then (Có)
+  :Hiển thị BiometricPrompt do hệ điều hành quản lý;
+  if (Kết quả xác thực) then (Thành công)
+    :Cho phép hiển thị nội dung nhạy cảm;
+  else (Hủy/thất bại/lỗi)
+    :Giữ trạng thái khóa hoặc dùng fallback hợp lệ;
+  endif
+else (Không)
+  :Hiển thị fallback theo chính sách:\nkhóa màn hình thiết bị hoặc thông báo cấu hình;
+endif
+stop
+@enduml

@@ -1,0 +1,22 @@
+@startuml
+title Hình 2.7. Luồng kiểm tra ghim chứng chỉ khi gọi API
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+  DiamondBackgroundColor White
+  DiamondBorderColor Black
+}
+
+start
+:Android app tạo request HTTPS tới backend;
+:TLS handshake và kiểm tra chuỗi chứng chỉ thông thường;
+:Network Security Config kiểm tra SPKI pin;
+if (Pin khớp?) then (Có)
+  :Cho phép request tiếp tục;
+else (Không)
+  :Chặn kết nối, trả lỗi mạng an toàn;
+endif
+stop
+@enduml

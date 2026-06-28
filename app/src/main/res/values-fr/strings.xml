@@ -42,6 +42,7 @@
     <string name="init_error_timeout">Initialization timeout</string>
     <string name="init_error_unknown">Unknown error</string>
     <string name="error_loading_profile_demo">Error loading profile. Using demo data.</string>
+    <string name="error_mitm_detected">Connexion sécurisée échouée. Veuillez vérifier votre réseau.</string>
     <string name="sos_countdown">SOS sending in %1$d s</string>
     <string name="cancel_sos">Cancel SOS</string>
     <string name="auto_call_countdown">Auto-calling %1$s in %2$d s</string>

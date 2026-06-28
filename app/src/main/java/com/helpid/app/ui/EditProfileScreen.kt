@@ -77,6 +77,8 @@ import com.helpid.app.ui.components.GhostButton
 import com.helpid.app.ui.components.PrimaryButton
 import com.helpid.app.ui.components.ScreenHeader
 import com.helpid.app.ui.components.SecondaryButton
+import com.helpid.app.ui.components.SecureScreenWrapper
+import javax.net.ssl.SSLHandshakeException
 
 @Composable
 fun EditProfileScreen(
@@ -94,6 +96,7 @@ fun EditProfileScreen(
     val isLoading = remember { mutableStateOf(true) }
     val isSaving = remember { mutableStateOf(false) }
     val saveError = remember { mutableStateOf<String?>(null) }
+    val mitmError = remember { mutableStateOf(false) }
     val showLogoutDialog = remember { mutableStateOf(false) }
     val showDisableBiometricDialog = remember { mutableStateOf(false) }
     val biometricEnabled = remember { mutableStateOf(false) }
@@ -216,21 +219,26 @@ fun EditProfileScreen(
 
     // Load profile on first launch
     LaunchedEffect(userId) {
-        withContext(Dispatchers.IO) {
-            val loadedProfile = repository.getProfile()
-            profile.value = loadedProfile
-            
-            // Populate fields
-            name.value = loadedProfile.name
-            bloodGroup.value = loadedProfile.bloodGroup
-            address.value = loadedProfile.address
-            allergies.value = loadedProfile.allergies.joinToString("\n")
-            medicalNotes.value = loadedProfile.medicalNotes.joinToString("\n")
-            
-            emergencyContacts.clear()
-            emergencyContacts.addAll(loadedProfile.emergencyContacts)
-            ensureMinContacts()
-            
+        try {
+            withContext(Dispatchers.IO) {
+                val loadedProfile = repository.getProfile()
+                profile.value = loadedProfile
+
+                name.value = loadedProfile.name
+                bloodGroup.value = loadedProfile.bloodGroup
+                address.value = loadedProfile.address
+                allergies.value = loadedProfile.allergies.joinToString("\n")
+                medicalNotes.value = loadedProfile.medicalNotes.joinToString("\n")
+
+                emergencyContacts.clear()
+                emergencyContacts.addAll(loadedProfile.emergencyContacts)
+                ensureMinContacts()
+            }
+        } catch (e: SSLHandshakeException) {
+            mitmError.value = true
+        } catch (_: Exception) {
+            // generic load failure — Room cache fallback already handled in repository
+        } finally {
             isLoading.value = false
         }
     }
@@ -294,6 +302,7 @@ fun EditProfileScreen(
         biometricStatusMessage.value = R.string.biometric_disabled
     }
 
+    SecureScreenWrapper {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -307,6 +316,19 @@ fun EditProfileScreen(
             subtitle = stringResource(R.string.update_emergency_information),
             onBackClick = onBackClick
         )
+
+        if (mitmError.value) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.error_mitm_detected),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+            )
+        }
 
         if (isLoading.value) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -638,6 +660,7 @@ fun EditProfileScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
+}
 }
 
 @Composable

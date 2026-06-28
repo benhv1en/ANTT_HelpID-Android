@@ -1,0 +1,43 @@
+@startuml
+title Sơ đồ kiến trúc tổng quan - HelpID (3 khối)
+
+skinparam defaultFontName "DejaVu Sans"
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam rectangle {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  FontSize 15
+}
+skinparam arrowColor #1F3D8C
+skinparam arrowFontColor #14213D
+skinparam arrowFontSize 13
+skinparam noteBackgroundColor #FFF8E1
+skinparam noteBorderColor #C9A227
+skinparam noteFontSize 12
+
+rectangle "**Android App**\nKotlin + Jetpack Compose\n--\nRoom (offline-first cache)\nAuthTokenStore (EncryptedSharedPreferences)\nHelpIdHttpClient: HttpURLConnection\n+ Certificate Pinning (network_security_config.xml)" as Android #E3F2FD
+
+rectangle "**Backend API**\nASP.NET Core + EF Core\n--\nSQLite (helpid-dev.db)\nUsers, RefreshTokens (hash), UserProfiles,\nPublicProfileLinks, AuditEvents, Roles/Permissions" as Backend #FFF3E0
+
+rectangle "**Website**\nReact 19 + Vite\n--\nVercel serverless API (api/*.js)\nproxy tới Backend cho profile/admin" as Website #E8F5E9
+
+Android -down-> Backend : "**JWT request**\n1. POST /auth/login | /auth/register\n2. POST /auth/refresh { refreshToken }\n3. GET/PUT /profile, POST /emergency-links/mint\n   Header: Authorization: Bearer <accessToken>\n4. POST /auth/logout { refreshToken }"
+Backend -up-> Android : "**JWT response**\naccessToken (JWT, hết hạn 15 phút)\n+ refreshToken (hết hạn 30 ngày)\n(refresh sẽ rotate: token cũ bị revoke)"
+
+Website -down-> Backend : "HTTPS REST (proxy)\nGET/PUT /profile, /admin/*"
+Backend -up-> Website : "JSON response"
+
+note right of Android
+  Access/refresh token được lưu trong
+  AuthTokenStore (EncryptedSharedPreferences),
+  không log token/password ra logcat.
+end note
+
+note right of Backend
+  Backend luôn lấy userId từ JWT claim "sub",
+  không tin userId client gửi trong body/query.
+  RefreshTokens lưu TokenHash, không lưu plaintext.
+end note
+
+@enduml

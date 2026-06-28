@@ -3,6 +3,7 @@ package com.helpid.app.data
 import android.content.Context
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
+import com.helpid.app.network.HelpIdHttpClient
 import java.io.IOException
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -10,6 +11,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
+import javax.net.ssl.SSLHandshakeException
 
 /**
  * Real implementation of [AuthRepository] that calls the HelpID backend API.
@@ -74,6 +76,9 @@ class HelpIdApiAuthRepository(private val context: Context) : AuthRepository {
             val code = conn.responseCode
             drainAndDisconnect(conn)
             if (code in 200..299) LogoutResult.Success else LogoutResult.NetworkError
+        } catch (e: SSLHandshakeException) {
+            HelpIdHttpClient.logPinFailure()
+            LogoutResult.NetworkError
         } catch (_: IOException) {
             LogoutResult.NetworkError
         } catch (_: Exception) {
@@ -92,6 +97,9 @@ class HelpIdApiAuthRepository(private val context: Context) : AuthRepository {
             val raw = readBody(conn, code)
             conn.disconnect()
             parseTokenResponse(code, raw)
+        } catch (e: SSLHandshakeException) {
+            HelpIdHttpClient.logPinFailure()
+            AuthResult.NetworkError
         } catch (_: IOException) {
             AuthResult.NetworkError
         } catch (_: Exception) {
@@ -100,10 +108,7 @@ class HelpIdApiAuthRepository(private val context: Context) : AuthRepository {
     }
 
     private fun openConnection(url: URL, method: String, body: String): HttpURLConnection =
-        (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = TIMEOUT_MS
-            readTimeout = TIMEOUT_MS
+        HelpIdHttpClient.openConnection(url, method).apply {
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
             if (method != "GET") {

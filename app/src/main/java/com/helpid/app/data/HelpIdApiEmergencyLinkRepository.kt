@@ -3,10 +3,12 @@ package com.helpid.app.data
 import android.content.Context
 import android.os.Build
 import com.google.gson.JsonParser
+import com.helpid.app.network.HelpIdHttpClient
 import java.io.IOException
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import javax.net.ssl.SSLHandshakeException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,6 +34,9 @@ class HelpIdApiEmergencyLinkRepository(
                 }
                 else -> ""
             }
+        } catch (e: SSLHandshakeException) {
+            HelpIdHttpClient.logPinFailure()
+            ""
         } catch (_: IOException) {
             ""
         } catch (_: Exception) {
@@ -62,10 +67,7 @@ class HelpIdApiEmergencyLinkRepository(
     }
 
     private fun callMintApi(baseUrl: String, accessToken: String): Pair<Int, String> {
-        val conn = (URL("$baseUrl/api/v1/emergency-links/mint").openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = TIMEOUT_MS
-            readTimeout = TIMEOUT_MS
+        val conn = HelpIdHttpClient.openConnection(URL("$baseUrl/api/v1/emergency-links/mint"), "POST").apply {
             setRequestProperty("Authorization", "Bearer $accessToken")
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
